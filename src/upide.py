@@ -93,9 +93,13 @@ class Window(QMainWindow):
       # code to be run has been downloaded to the board:
       # Thus make run button a stop button
       self.editors.set_run_mode(False, self.code["name"])
+      # and allow the console to react on key presses
+      self.console.enable_input(True)
 
    def on_run_done(self, success):
       self.on_board_request(False)
+      self.console.enable_input(False)
+      self.editors.focus() # give focus back to topmost editor
       if success: self.status("Code execution successful");
       else:       self.status("Code execution aborted with error");
 
@@ -298,6 +302,7 @@ class Window(QMainWindow):
 
       # setup board interface
       self.board = Board()      
+      self.console.input.connect(self.board.input)
       self.board.console.connect(self.on_console)
       self.board.progress.connect(self.progress)
       self.board.error.connect(self.on_error)

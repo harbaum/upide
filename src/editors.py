@@ -112,7 +112,12 @@ class EditorTabs(QTabWidget):
                 return True
 
         return False
-         
+
+    def focusTop(self):
+        w = self.currentWidget()
+        if w is not None:
+            w.setFocus()        
+    
 class Editors(QStackedWidget):
     run = pyqtSignal(str, str)
     save = pyqtSignal(str, str)
@@ -189,3 +194,8 @@ class Editors(QStackedWidget):
 
     def rename(self, old, new):
         self.tabs.rename(old, new)
+        
+    def focus(self):
+        # five focus to topmost editor (if there is one)
+        if self.tabs.count() != 0:
+            self.tabs.focusTop()

@@ -22,20 +22,35 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
 class Console(QPlainTextEdit):
+    input = pyqtSignal(str)
+    
     def __init__(self):
         super().__init__()
 
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.setReadOnly(True)
-
+        self.input_enabled = False
+        
         font = QFont("Mono", 10)
         font.setStyleHint(QFont.Monospace);
         font.setFixedPitch(True)
         self.setFont(font)
 
         self.buffer = b""
+        self.esc_buffer = ""
+        
+    def enable_input(self, enable):
+        self.input_enabled = enable
+        self.setReadOnly(not enable)
+        if enable: self.setFocus()
+        
+    def keyPressEvent(self, event):
+        if self.input_enabled:
+            key = event.text()
+            if key != "":            
+                self.input.emit(key)
 
-    def append(self, str, color=None):
+    def appendFinal(self, str, color):
         self.moveCursor(QTextCursor.End)
         if not hasattr(self, 'tf') or not self.tf:
             self.tf = self.currentCharFormat()
@@ -45,6 +60,64 @@ class Console(QPlainTextEdit):
             self.textCursor().insertText(str, tf);
         else:
             self.textCursor().insertText(str, self.tf);
+
+    def appendWithBS(self, str, color):
+        # process backspace
+        if "\x08" in str:
+            parts = str.split("\x08")
+            self.appendFinal(parts[0], color)
+            for i in range(len(parts)-1):
+                # here is a BS
+                self.textCursor().deletePreviousChar()
+                
+                self.appendFinal(parts[i+1], color)
+        else:
+            self.appendFinal(str, color)
+
+    def unEsc(self, str):        
+        if len(str) < 1: return None  # not enough data to decode
+        if str[0] != "[": return str  # not a [ -> just print
+        if len(str) < 2: return None  # not enough data to decode
+        if str[1].isalpha(): return str[2:] # remove [K
+        return str
+            
+    def append(self, str, color=None):
+        # prepend and incomplete esc sequence we may still have
+        if self.esc_buffer is not None:
+            str = self.esc_buffer + str
+            self.esc_buffer = None
+                
+        # todo: handle special sequences
+        # 0x08    BS
+        # https://en.wikipedia.org/wiki/ANSI_escape_code#CSIsection
+        # 0x1b[K  clear to end of line (sent after BS)
+
+        # check if there are escape sequences in the string
+        if "\x1b" in str:        
+            strparts = str.split("\x1b")
+
+            # skip everything between ESC and for letter
+            if len(strparts[0]) > 0:
+                # part before ESC
+                self.appendWithBS(strparts[0], color)
+
+            # there are "middle parts"
+            if len(strparts) > 2:
+                # process everything but the last one directly
+                for i in range(len(strparts)-2):
+                    self.appendWithBS(self.unEsc(strparts[1+i]))
+
+            # and the rest may potentially be incomplete (yet) ...
+            d = self.unEsc(strparts[-1])
+            # whole ESC sequence could be removed
+            if d is not None:
+                self.appendWithBS(d, color)
+            else:
+                # store incomplete esc sequence
+                self.esc_buffer = "\x1b" + strparts[-1]
+                    
+        else:
+            self.appendWithBS(str, color)
             
     def appendBytes(self, b):
         # prepend everything we might still have in buffer

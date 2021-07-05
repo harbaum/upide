@@ -92,8 +92,7 @@ class BoardThread(QThread):
          print("Exception in BoardTread():", sys.exc_info())
          self.board.queue.put( (Board.RESULT, False ))
          
-         # in case of a run command report error in console
-         # if self.cmd_code == Board.RUN:
+         # report error in console
          name = self.parms["name"] if self.cmd_code == Board.RUN else None
          self.board.queue.put( (Board.ERROR, name, sys.exc_info()[1]) )
 
@@ -103,8 +102,6 @@ class Serial(serial.Serial):
       self._buffer = b""
 
    def readUntil(self, timeout, seq, callback = None):
-      # print("readUntil", timeout, seq, callback)
-
       # there may already be data in the buffer which should go with
       # the callback
       if callback:
@@ -202,6 +199,7 @@ class Board(QObject):
       print("Board init");
       self.serial = None
       self.cmd_code = None
+      self.thread_running = False
 
       self.queue = Queue()
       
@@ -212,6 +210,12 @@ class Board(QObject):
       self.timer.start(100)  # poll at 10 Hz
       
    def on_timer(self):
+      # check if thread is still running
+      if self.thread:
+         if self.thread.isFinished():
+            self.thread = None
+            self.done()
+      
       # read messages from thread out of queue and convert them
       # into qt signals
       while not self.queue.empty():
@@ -248,7 +252,10 @@ class Board(QObject):
       if cmd == Board.GET_FILE: self.progress.emit(0)
       else:                     self.progress.emit(-1)
       self.thread.start()
-         
+
+   def done(self):
+      print("thread done");
+      
    def sendCtrl(self, code):
       codes = { 'a': b'\x01', 'b': b'\x02', 'c': b'\x03',
                 'd': b'\x04', 'e': b'\x05' }
@@ -389,10 +396,7 @@ class Board(QObject):
       return result
 
    def interrupt(self):
-      # ctrl-d, ctrl-b and twice ctrl-c to get into a known state
-      # self.sendCtrl('d')  # this resets the ftduino32 :-(
-      # self.sendCtrl('b')
-
+      # send ctrl-c twice to get into a known state
       if not self.sendCtrl('c'):
          print("Writing ctrl-c failed")
          return False            
@@ -436,6 +440,9 @@ class Board(QObject):
          if self.probe():
             return True
          else:
+            # self.sendCtrl('d')  # this resets the ftduino32 :-(
+            self.sendCtrl('b')
+
             # retry once
             if self.probe():
                return True
@@ -464,9 +471,18 @@ class Board(QObject):
             return
             
       raise RuntimeError("No board found!")
-            
+
+   def input(self, data):
+      # forward and keyboard input directly to the board
+      if self.serial is not None:
+         self.serial.write(data.encode("utf-8"))
+   
    def close(self):
       if self.serial is not None:
          self.serial.close()
          self.serial = None
 
+      if self.thread:
+         print("waiting for thread to end")
+         while not self.thread.isFinished():
+            time.sleep(.1);
