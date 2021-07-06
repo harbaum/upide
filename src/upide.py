@@ -139,6 +139,14 @@ class Window(QMainWindow):
          else:
             # else it's a newly created file
             self.editors.new(name)
+
+   def on_mkdir_done(self, success, result=None):
+      self.on_board_request(False)
+         
+      # user wants to create a new directory
+   def on_mkdir(self, name):
+      self.on_board_request(True)
+      self.board.cmd(Board.MKDIR, self.on_mkdir_done, { "name": name } )
       
    def on_delete(self, name):
       # close tab if present
@@ -179,6 +187,7 @@ class Window(QMainWindow):
       self.fileview = FileView()
       self.fileview.open.connect(self.on_open)
       self.fileview.delete.connect(self.on_delete)
+      self.fileview.mkdir.connect(self.on_mkdir)
       self.fileview.rename.connect(self.on_rename)
       self.fileview.message.connect(self.on_message)
       hsplitter.addWidget(self.fileview)

@@ -75,6 +75,9 @@ class BoardThread(QThread):
          elif self.cmd_code == Board.PUT_FILE:
             self.board.putFile(self.parms["name"], self.parms["code"])
             self.board.queue.put( (Board.RESULT, True ) )       
+         elif self.cmd_code == Board.MKDIR:
+            self.board.mkdir(self.parms["name"])
+            self.board.queue.put( (Board.RESULT, True ) )       
          elif self.cmd_code == Board.GET_FILE:
             result = {
                "code": self.board.getFile(self.parms["name"], self.file_progress),
@@ -185,6 +188,7 @@ class Board(QObject):
    GET_FILE = 4
    PUT_FILE = 5
    RUN = 6
+   MKDIR = 7
    
    # message code used by the thread
    CODE_DOWNLOADED = 1
@@ -335,6 +339,14 @@ class Board(QObject):
       command = """
         import os
         os.remove('{0}')
+        """.format(filename)
+      self.replDo(command)
+           
+   def mkdir(self, filename):
+      """Crete a directory."""
+      command = """
+        import os
+        os.mkdir('{0}')
         """.format(filename)
       self.replDo(command)
            

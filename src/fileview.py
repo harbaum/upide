@@ -24,13 +24,19 @@ from PyQt5.QtCore import *
 from board import Board
 
 class FileNode(object):
-   def __init__(self, name, path, size = None):      
+   def __init__(self, name, size = None): 
       self.name = name
       self.size = size
       self._children = []
       self._parent = None
       self._row = 0
-
+      
+   def copy(self):
+      d = FileNode(self.name, self.size)
+      d._children = self._children
+      d._parent = self._parent
+      return d
+      
    def path(self):
       # check number of parents as we want to ignore the
       # invisible root and the "Board" root
@@ -51,14 +57,28 @@ class FileNode(object):
       elif column == FileView.COL_SIZE: return self.size;
       return None
 
+   def set(self, node):
+      # overwrite an entry with a different one (e.g. while renaming)
+      # the _row field is not changed and should already be correct
+      self.name = node.name
+      self.size = node.size
+      self._parent = node._parent
+      self._children = node._children
+      # adjust parent entries of all children
+      for c in self._children:
+         c._parent = self
+      
    def setData(self, column, data):
       if column == FileView.COL_NAME:
          self.name = data
       elif column == FileView.COL_SIZE:
          self.size = data
-   
+
+   def isDir(self):
+      return self.size is None
+         
    def columnCount(self):
-      return 2 if self.name != "" and (self.size is not None or len(self._children)) else 1
+      return 2 if self.name != "" and (not self.isDir() or len(self._children)) else 1
 
    def childCount(self):
       return len(self._children)
@@ -78,17 +98,29 @@ class FileNode(object):
       child._row = len(self._children)
       self._children.append(child)
 
+   def insertChild(self, row, child):
+      child._parent = self
+      child._row = None
+      self._children.insert(row, child)
+
+      # renumber all children from new one up
+      for i in range(row, len(self._children)):
+         self._children[i]._row = i
+         
    def removeChild(self, row):
       self._children.remove(self._children[row])
+      # renumber all children afterwards
+      for i in range(row, len(self._children)):
+         self._children[i]._row = i
       
    def __str__(self):
-      return "FileNode {}-{} {}".format(self.name, self.size, self.childCount());
+      return "FileNode {}({}) kids: {}".format(self.name, self.size, self.childCount());
       
 class FileModel(QAbstractItemModel):
    def __init__(self, nodes):
       super().__init__()
       self._root = nodes
-         
+
       # Translate asset paths to useable format for PyInstaller
    def resource_path(self, relative_path):
       if hasattr(sys, '_MEIPASS'):
@@ -100,19 +132,28 @@ class FileModel(QAbstractItemModel):
          return [ "Name", "Size" ][section]
       return QAbstractTableModel.headerData(self, section, orientation, role)
 
-   def removeRows(self, row, count, _parent=QModelIndex()):
-      if not _parent or not _parent.isValid():
-         parent = self._root
+   def getNode(self, index):
+      if not index or not index.isValid():
+         return self._root
       else:
-         parent = _parent.internalPointer()
-
-      self.beginRemoveRows(_parent, row, row+count-1);
+         return index.internalPointer()      
+   
+   def insertRows(self, row, count, _parent=QModelIndex()):
+      print("insertRows()", row, count)
+      self.beginInsertRows(_parent, row, row+count-1)
       for i in range(count):
-         parent.removeChild(row+i)
-
-      self.endRemoveRows()
+         self.getNode(_parent).insertChild(row+i, FileNode(None) )
+      self.endInsertRows();
       return True
    
+   def removeRows(self, row, count, _parent=QModelIndex()):
+      print("removeRows()", row, count)
+      self.beginRemoveRows(_parent, row, row+count-1);
+      for i in range(count):
+         self.getNode(_parent).removeChild(row+i)
+      self.endRemoveRows()
+      return True
+
    def rowCount(self, index):
       if index.isValid():
          return index.internalPointer().childCount()
@@ -155,18 +196,15 @@ class FileModel(QAbstractItemModel):
       if not index.isValid():
          return False
 
-      if role == Qt.DisplayRole:      
-         node = index.internalPointer()
-         node.setData(index.column(), value)
-
+      if role == Qt.DisplayRole:
+         self.getNode(index).setData(index.column(), value)
          self.dataChanged.emit(index, index)
          
    def data(self, index, role):
       if not index.isValid():
          return None
       
-      node = index.internalPointer()
-      
+      node = self.getNode(index) 
       if index.column() == FileView.COL_NAME and role == Qt.DecorationRole:
          # no size? -> folder
          if node.data(FileView.COL_SIZE) is None:
@@ -178,8 +216,9 @@ class FileModel(QAbstractItemModel):
     
       if role == Qt.DisplayRole:
          return node.data(index.column())
+      
       return None
-   
+
 class ItalicDelegate(QStyledItemDelegate):
    # files that are not yet present on the device have size -1 and
    # are displayed in italics
@@ -196,20 +235,23 @@ class FileView(QTreeView):
    
    message = pyqtSignal(str)   
    open = pyqtSignal(str, int)   
+   mkdir = pyqtSignal(str)   
    delete = pyqtSignal(str)   
    rename = pyqtSignal(str, str)   
    
-   # this should become a up file view
    def __init__(self):
       super().__init__()
       self.setExpandsOnDoubleClick(False)
-
+      
       # https://stackoverflow.com/questions/782255/pyqt-and-context-menu
       self.contextMenu = QMenu(self);
-      self.newAction = QAction("New...", self.contextMenu);
-      self.newAction.setDisabled(True)
+      self.newMenu = self.contextMenu.addMenu("New")      
+      self.newAction = QAction("File...", self.newMenu);
       self.newAction.triggered.connect(self.on_context_new)
-      self.contextMenu.addAction(self.newAction);
+      self.newMenu.addAction(self.newAction);
+      self.newDirAction = QAction("Directory...", self.newMenu);
+      self.newDirAction.triggered.connect(self.on_context_new_dir)
+      self.newMenu.addAction(self.newDirAction);
       self.openAction = QAction("Open", self.contextMenu);
       self.openAction.setDisabled(True)
       self.openAction.triggered.connect(self.on_context_open)
@@ -225,27 +267,27 @@ class FileView(QTreeView):
 
       self.setContextMenuPolicy(Qt.CustomContextMenu);
       self.customContextMenuRequested.connect(self.on_context_menu)
+      
+      self.setAcceptDrops(True)
 
-   def find(self, path, files, name):
-      for f in files:
-         # print("find", name, path+"/"+f[0])
-         if name == path+"/"+f[0]:
-            return f
-         elif not isinstance(f[1], int):
-            d = self.find(path+"/"+f[0], f[1], name)
-            if d is not None:
-               return d
+   def findNode(self, name, path = "", node = None):
+      if node is None:
+         node = self.model()._root.child(0)
+
+      if name == path:
+         return node
+      
+      for ci in range(node.childCount()):
+         child = node.child(ci)
+         if name.startswith(path+"/"+child.name):
+            return self.findNode(name, path+"/"+child.name, child)
+
       return None
-
+            
    def exists(self, name):
       # check if a file with this name already exists
-      return self.find("", self.files, name) is not None
+      return self.findNode(name) is not None
 
-   def getDir(self, name):
-      d = self.find("", self.files, name)
-      if not isinstance(d, list): return None
-      return d
-   
    def expand_(self, model, name, parent = QModelIndex()):
       for r in range(model.rowCount(parent)):
          index = model.index(r, 0, parent);
@@ -259,56 +301,70 @@ class FileView(QTreeView):
    def expandPath(self, name):
       self.expand_(self.model(), (FileView.ROOTNAME + name).split("/"))
 
-   def add(self, name):
+   # get modelindex for a named entry
+   def getIndex(self, model, name, parent = QModelIndex()):
+      for r in range(model.rowCount(parent)):
+         index = model.index(r, FileView.COL_NAME, parent);
+
+         if model.data(index, Qt.DisplayRole) == name[0]:
+            if len(name) == 1:
+               return index
+         
+            # check if we should enter this directory
+            if len(name) > 1 and model.hasChildren(index):
+               return self.getIndex(model, name[1:], index)
+               
+   def isValidFilename(self, name):
+      not_allowed = "\\/:*\"<>|"
+      if name == "": return False
+      if any(i in not_allowed for i in name): return False
+      return True
+   
+   def on_context_new_dir(self):
+      name, ok = QInputDialog.getText(self, 'New directory', 'Enter new directory name:')
+      if not ok: return
+
+      # check if this is a valid name
+      if not self.isValidFilename(name):
+         self.message.emit("The directory name must not be empty and "+
+                           "must not contain the characters \\,/,:,*,\",<,> or |");
+         return
+
       # create full path name
       fullname = self.context_entry[0] + "/" + name
       
       # check if file already exists
       if self.exists(fullname):
-         self.message.emit("A file with that name already exists");
-         return False
+         self.message.emit("A file or directory with that name already exists");
 
-      # create new file in tree
-      # check if this is in the root
-      if self.context_entry[0] == "":
-         # append new file to trees root
-         self.files.append( [ name, -1 ] )
-         self.files = sorted(self.files, key=lambda x: x[0])
-      else:
-         # get parent directory
-         pdir = self.getDir(self.context_entry[0])
-         if pdir is None:
-            print("no such dir");
-            return False
-
-         # append new file to file tree
-         pdir[1].append( [ name, -1 ] )
-         pdir[1] = sorted(pdir[1], key=lambda x: x[0])
+      # add a new row
+      self.addToModel(self.model(), (FileView.ROOTNAME + fullname).split("/"), [ name, None ])      
       
-      # update tree view
-      self.set(self.files)
-
-      # open path
-      self.expandPath(fullname)
+      # and create the directory
+      self.mkdir.emit(self.context_entry[0] + "/" + name)
       
-      return True
-         
    def on_context_new(self):
       name, ok = QInputDialog.getText(self, 'New file', 'Enter new file name:')
       if not ok: return
-         
+
+      if not self.isValidFilename(name):
+         self.message.emit("The file name must not be empty and "+
+                           "must not contain the characters \\,/,:,*,\",<,> or |");
+         return
+               
       if not name.endswith(".py"):
          name = name + ".py"
 
-      # check if this is a valid name
-      if name == ".py":
-         self.message.emit("The file name must not be empty!");
-         return
+      # create full path name
+      fullname = self.context_entry[0] + "/" + name
+      
+      # check if file already exists
+      if self.exists(fullname):
+         self.message.emit("A file or directory with that name already exists");
 
-      # add the new file to the file tree
-      if not self.add(name):
-         return
-
+      # add a new row
+      self.addToModel(self.model(), (FileView.ROOTNAME + fullname).split("/"), [ name, -1 ])      
+      
       # and open an (empty) editor window
       self.open.emit(self.context_entry[0] + "/" + name, -1)
       
@@ -347,24 +403,65 @@ class FileView(QTreeView):
          self.message.emit("A file with that name already exists");
          return False
       
-      # rename in file list
-      entry = self.find("", self.files, self.context_entry[0])
-      if entry != None: entry[0] = name
+      # get a copy of the old entry
+      entry = self.findNode(self.context_entry[0]).copy()
 
-      # update tree view
-      self.updateModel(self.model(), (FileView.ROOTNAME + self.context_entry[0]).split("/"), name, None)      
+      self.removeFromModel(self.model(), (FileView.ROOTNAME + self.context_entry[0]).split("/"))
+      self.addToModel(self.model(), (FileView.ROOTNAME + fullname).split("/"), [ name, 0 ])      
 
-      # and open an (empty) editor window
+      # update entry (so directories get their children back)
+      entry.name = name
+      self.findNode(fullname).set(entry)      
+
+      # keep selection on renamed object
+      self.setCurrentIndex(self.getIndex(self.model(), (FileView.ROOTNAME + fullname).split("/")))
+
+      # and finally request the actual rename
       self.rename.emit(self.context_entry[0], fullname)
-     
 
+   def store(self, model, parent, index, obj):
+      # create a new (unset) row
+      model.insertRow(index, parent)
+      # and set data in that row
+      model.setData(model.index(index, FileView.COL_NAME, parent),\
+                    obj[0], Qt.DisplayRole)
+      model.setData(model.index(index, FileView.COL_SIZE, parent),\
+                    obj[1], Qt.DisplayRole)
+      
+      self.expand(parent)
+               
+   def addToModel(self, model, name, obj, parent = QModelIndex()):
+      if len(name) == 1:
+         # iterate over all children to find the one to insert before
+         for r in range(model.rowCount(parent)):
+            index = model.index(r, FileView.COL_NAME, parent);
+            name = model.data(model.index(r, FileView.COL_NAME, parent), Qt.DisplayRole);
+
+            if name > obj[0]:
+               self.store(model, parent, r, obj)
+               return
+
+         # no item to insert before, so append
+         self.store(model, parent, model.rowCount(parent), obj)
+         return
+      else:         
+         # iterate over all children
+         for r in range(model.rowCount(parent)):
+            index = model.index(r, FileView.COL_NAME, parent);
+            size = model.data(model.index(r, FileView.COL_SIZE, parent), Qt.DisplayRole);
+
+            # check if we should enter this directory (size == None -> isdir)
+            # We cannot check with hasChildren here as we also want to
+            # handle empty directories
+            if model.data(index, Qt.DisplayRole) == name[0] and len(name) > 1 and size == None:
+               self.addToModel(model, name[1:], obj, index)        
+               
    # remove item from model
    def removeFromModel(self, model, name, parent = QModelIndex()):
       for r in range(model.rowCount(parent)):
          index = model.index(r, FileView.COL_NAME, parent);
-         lname = model.data(index, Qt.DisplayRole);
 
-         if lname == name[0]:
+         if model.data(index, Qt.DisplayRole) == name[0]:
             if len(name) == 1:
                model.removeRow(r, parent)
                return
@@ -378,24 +475,8 @@ class FileView(QTreeView):
       path = "/".join(fullname.split("/")[:-1])
       name = fullname.split("/")[-1]
             
-      # remove from files list
-      if path == "":
-         # remove from root
-         for i in range(len(self.files)):
-            if self.files[i][0] == name:
-               self.files.remove(self.files[i])
-               break
-      else:
-         # get parent directory
-         pdir = self.getDir(path)
-         if pdir is not None:
-            for i in range(len(pdir[1])):
-               if pdir[1][i][0] == name:
-                  pdir[1].remove(pdir[1][i])
-                  break
-
       # Instead of updating the entire tree view just remove the row
-      self.removeFromModel(self.model(), (FileView.ROOTNAME + fullname).split("/"))      
+      self.removeFromModel(self.model(), (FileView.ROOTNAME + fullname).split("/"))
                
    def on_context_delete(self):
       qm = QMessageBox()
@@ -419,8 +500,7 @@ class FileView(QTreeView):
          self.renameAction.setEnabled(name != "" and size != -1 and name != "/boot.py" and name != "/main.py")
          
          # new files can be created for directories
-         self.newAction.setVisible(size == None)
-         self.newAction.setEnabled(size == None)
+         self.newMenu.setEnabled(size == None)
          
          # the open entry is visible for all regular files but only
          # files ending with *.py can be opened
@@ -433,7 +513,7 @@ class FileView(QTreeView):
          # - boot.py
          # - main.py
          # - newly created yet unsaved files
-         if size is None and (name == "" or len(self.getDir(name)[1]) > 0):
+         if size is None and (name == "" or self.findNode(name).childCount() > 0):
             self.deleteAction.setEnabled(False)
          elif size == -1:
             self.deleteAction.setEnabled(False)
@@ -453,7 +533,6 @@ class FileView(QTreeView):
             if isinstance(size, int):
                name = index.model().path(index)
                if name.endswith(".py"):
-                  print("open with size", size)
                   self.open.emit(name, size)
                   
    def updateModel(self, model, name, new_name, new_size, parent = QModelIndex()):
@@ -479,9 +558,9 @@ class FileView(QTreeView):
                   
    def saved(self, name, size):
       # update size of entry in file list
-      entry = self.find("", self.files, name)
+      entry = self.findNode(name)
       if entry != None:
-         entry[1] = size
+         entry.size = size
 
       self.updateModel(self.model(), (FileView.ROOTNAME + name).split("/"), None, size)      
                   
@@ -490,20 +569,18 @@ class FileView(QTreeView):
       for f in files:
          filename = path + "/" + f[0]
          if isinstance(f[1], int):
-            node = FileNode(f[0], filename, f[1])
+            node = FileNode(f[0], f[1])
          else:
-            node = FileNode(f[0], filename)
+            node = FileNode(f[0])
             for s in self.getItems(f[1], filename):
                node.addChild(s)
          items.append(node)
       return items
       
    def set(self, files):
-      self.files = files
-      
       # invisible root item
-      root = FileNode("", "")      
-      rootdir = FileNode(FileView.ROOTNAME, "")
+      root = FileNode("")      
+      rootdir = FileNode(FileView.ROOTNAME)
       root.addChild(rootdir)
       for i in self.getItems(files, ""):
          rootdir.addChild(i)
@@ -520,6 +597,38 @@ class FileView(QTreeView):
 
    def on_editor_closed(self, name):
       # only remove file from tree if it's not yet physically written back
-      f = self.find("", self.files, name)
-      if f != None and f[1] == -1:
+      f = self.findNode(name)
+      if f != None and f.size == -1:
          self.remove(name)
+      
+   # drag'n drop ralated          
+   def isDroppable(self, event):
+      # check if there's an item
+      index = self.indexAt(event.pos())
+      if not index.isValid():
+         return False
+      
+      # print("AT", self.model().getNode(index).name)      
+      return self.model().getNode(index).isDir()
+         
+   # drag'n drop        
+   def dragEnterEvent(self, event):
+      # application/x-python-code or text/x-python.
+      #print("dragEnterEvent:", event.mimeData().formats())
+
+      if event.mimeData().hasFormat("text/plain") or \
+         event.mimeData().hasFormat("text/x-python") or  \
+         event.mimeData().hasFormat("application/x-python-code"):
+         print("accepting python/text")
+         event.acceptProposedAction();
+                  
+   def dragMoveEvent(self, event):
+      #print("dragMoveEvent", event)
+
+      if self.isDroppable(event):
+         event.acceptProposedAction();
+      
+   def dropEvent(self, event):      
+      #print("dropEvent:", event.mimeData().formats())
+      # event.mimeData().text()
+      event.acceptProposedAction();
