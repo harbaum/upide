@@ -59,16 +59,16 @@ class FileNode(object):
 
    def set(self, node):
       # overwrite an entry with a different one (e.g. while renaming)
-      # the _row field is not changed and should already be correct
+      # the _row field is not changed and should already be correct as
+      # well as the _parent field
       self.name = node.name
       self.size = node.size
-      self._parent = node._parent
       self._children = node._children
       # adjust parent entries of all children
       for c in self._children:
          c._parent = self
       
-   def setData(self, column, data):
+   def setData(self, column, data):      
       if column == FileView.COL_NAME:
          self.name = data
       elif column == FileView.COL_SIZE:
@@ -199,6 +199,9 @@ class FileModel(QAbstractItemModel):
       if role == Qt.DisplayRole:
          self.getNode(index).setData(index.column(), value)
          self.dataChanged.emit(index, index)
+         return True
+
+      return False
          
    def data(self, index, role):
       if not index.isValid():
@@ -218,6 +221,31 @@ class FileModel(QAbstractItemModel):
          return node.data(index.column())
       
       return None
+
+   def supportedDropActions(self):
+      return Qt.MoveAction
+
+   def flags(self, index):
+      if not index.isValid(): return Qt.NoItemFlags
+
+      node = index.internalPointer()
+      # print("Flags for", node.path())
+
+      # root cannot be dragged
+      if node.path() == "":
+         return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDropEnabled
+         
+      # boot.py and main.py cannot be dragged
+      if node.path() == "/boot.py" or node.path() == "/main.py":
+         return Qt.ItemIsEnabled | Qt.ItemIsSelectable;
+      
+      if not node.isDir():
+         # regular files cannot be dropped upon
+         return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled;
+
+      # directories can
+      return Qt.ItemIsEnabled | Qt.ItemIsSelectable | \
+         Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled
 
 class ItalicDelegate(QStyledItemDelegate):
    # files that are not yet present on the device have size -1 and
@@ -242,6 +270,7 @@ class FileView(QTreeView):
    def __init__(self):
       super().__init__()
       self.setExpandsOnDoubleClick(False)
+      self.setHeaderHidden(True)
       
       # https://stackoverflow.com/questions/782255/pyqt-and-context-menu
       self.contextMenu = QMenu(self);
@@ -263,24 +292,26 @@ class FileView(QTreeView):
       self.deleteAction = QAction("Delete...", self.contextMenu);
       self.deleteAction.setDisabled(True)
       self.deleteAction.triggered.connect(self.on_context_delete)
-      self.contextMenu.addAction(self.deleteAction);
-
+      self.contextMenu.addAction(self.deleteAction)
+      
       self.setContextMenuPolicy(Qt.CustomContextMenu);
       self.customContextMenuRequested.connect(self.on_context_menu)
       
       self.setAcceptDrops(True)
+      self.setDragDropMode(QAbstractItemView.InternalMove)
+      self.setDragEnabled(True)
 
    def findNode(self, name, path = "", node = None):
       if node is None:
          node = self.model()._root.child(0)
 
-      if name == path:
-         return node
-      
       for ci in range(node.childCount()):
          child = node.child(ci)
-         if name.startswith(path+"/"+child.name):
+         if name.startswith(path+"/"+child.name+"/"):
             return self.findNode(name, path+"/"+child.name, child)
+
+         if name == path+"/"+child.name:
+            return child   
 
       return None
             
@@ -336,6 +367,7 @@ class FileView(QTreeView):
       # check if file already exists
       if self.exists(fullname):
          self.message.emit("A file or directory with that name already exists");
+         return
 
       # add a new row
       self.addToModel(self.model(), (FileView.ROOTNAME + fullname).split("/"), [ name, None ])      
@@ -361,6 +393,7 @@ class FileView(QTreeView):
       # check if file already exists
       if self.exists(fullname):
          self.message.emit("A file or directory with that name already exists");
+         return
 
       # add a new row
       self.addToModel(self.model(), (FileView.ROOTNAME + fullname).split("/"), [ name, -1 ])      
@@ -601,34 +634,107 @@ class FileView(QTreeView):
       if f != None and f.size == -1:
          self.remove(name)
       
-   # drag'n drop ralated          
-   def isDroppable(self, event):
-      # check if there's an item
+   # ------------- drag'n drop ralated -----------------
+
+   def eventNode(self, event):
       index = self.indexAt(event.pos())
       if not index.isValid():
+         return None
+
+      return index.internalPointer()
+
+   def isDraggable(self, event):
+      node = self.eventNode(event)
+      if node is None: return False
+      
+      # root cannot be dragged
+      if node.path() == "":
+         return False
+
+      # newly created file cannot be dragged before
+      # being saved to flash
+      if node.size == -1:
          return False
       
-      # print("AT", self.model().getNode(index).name)      
-      return self.model().getNode(index).isDir()
+      # boot.py and main.py cannot be dragged
+      return node.path() != "/boot.py" and node.path() != "/main.py"
+   
+   def isDroppable(self, event):
+      node = self.eventNode(event)
+      if node is None: return False
+
+      # check if this is the current parent node of dragNode as
+      # dropping on the current parent is not useful
+      if self.dragNode is not None:
+         if self.dragNode._parent == node:
+            return False
+
+         # check if user is trying to drop a directory into itself
+         # or one of its own subdirectories
+         # print("drop", self.dragNode.path(), "into", node.path())
+         if node.isDir():
+            # trying to drop into itself?
+            if node.path() == self.dragNode.path():
+               return False
+
+            # trying to drop into a subdir of self?
+            if node.path().startswith(self.dragNode.path()+"/"):
+               return False
          
+      return node.isDir()
+
+   def mousePressEvent(self, event: QMouseEvent):
+      if event.button() == Qt.LeftButton:
+         # print("mouse down on", self.eventNode(event))
+         if self.isDraggable(event):
+            self.dragNode = self.eventNode(event)
+         else:
+            self.dragNode = None
+
+         self.dropNode = None
+         super().mousePressEvent(event)
+            
    # drag'n drop        
-   def dragEnterEvent(self, event):
-      # application/x-python-code or text/x-python.
-      #print("dragEnterEvent:", event.mimeData().formats())
-
-      if event.mimeData().hasFormat("text/plain") or \
-         event.mimeData().hasFormat("text/x-python") or  \
-         event.mimeData().hasFormat("application/x-python-code"):
-         print("accepting python/text")
-         event.acceptProposedAction();
-                  
-   def dragMoveEvent(self, event):
-      #print("dragMoveEvent", event)
-
-      if self.isDroppable(event):
-         event.acceptProposedAction();
+   # https://stackoverflow.com/questions/63899567/dragmoveevent-doesnt-work-properly-when-overriding-mousemoveevent-qt-drag
+    
+   def dragEnterEvent(self, event: QDragEnterEvent):
+      # print("dragEnterEvent", self.eventNode(event))
+      self.selectionModel().clear()
+      if self.dragNode is not None:
+         super().dragEnterEvent(event)
       
-   def dropEvent(self, event):      
-      #print("dropEvent:", event.mimeData().formats())
-      # event.mimeData().text()
-      event.acceptProposedAction();
+   def dragMoveEvent(self, event):
+      if self.eventNode(event) != self.dropNode:
+         # print("update", self.eventNode(event), self.dropNode)
+         self.dropNode = self.eventNode(event)
+         self.selectionModel().clear()
+         if self.isDroppable(event):
+            index = self.indexAt(event.pos())
+            self.selectionModel().select(index, \
+                 QItemSelectionModel.Rows | QItemSelectionModel.Select)
+
+   def dropEvent(self, event):
+      self.selectionModel().clear()
+      if self.isDroppable(event) and self.dragNode is not None:
+         # build target name
+         fullname = self.eventNode(event).path() + "/" + self.dragNode.name;
+         if self.exists(fullname):
+            self.message.emit("A file or directory with that name already exists");
+            return
+
+         print("drop", self.dragNode.path(), "to", fullname);
+
+         # get a copy of the old entry
+         entry = self.findNode(self.dragNode.path()).copy()         
+         self.removeFromModel(self.model(), (FileView.ROOTNAME + self.dragNode.path()).split("/"))
+         self.addToModel(self.model(), (FileView.ROOTNAME + fullname).split("/"), [ self.dragNode.name, 0 ])      
+
+         # update entry (so directories get their children back)
+         self.findNode(fullname).set(entry)      
+
+         # keep selection on renamed object
+         self.setCurrentIndex(self.getIndex(self.model(), (FileView.ROOTNAME + fullname).split("/")))
+
+         # and finally request the actual rename
+         self.rename.emit(self.dragNode.path(), fullname)
+

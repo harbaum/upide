@@ -74,7 +74,7 @@ class Window(QMainWindow):
    def on_save_done(self, success = None):
       self.on_board_request(False)
       if success:
-         self.status("Saving successfully");
+         self.status("Saved "+self.code["name"]);
          self.editors.saved(self.code["name"])
          self.fileview.saved(self.code["name"], len(self.code["code"]))
          self.code = None
@@ -157,29 +157,11 @@ class Window(QMainWindow):
       self.editors.rename(old, new)
       self.board.rename(old, new)
 
-      #   def on_toolbar_clicked(self, a):
-      #      if a.text().lower().startswith("run"):
-      #         # load code from current tab
-      #         w = self.tabs.currentWidget()
-      #         #if w is not None:
-      #         #   self.console.clear()
-      #         #   self.status("Running code ...");
-      #         #   self.board.cmd(Board.RUN, self.on_run_done, { "code": w.text() } )
-
    def on_message(self, msg):
       msgBox = QMessageBox(QMessageBox.Critical, "Error", msg, parent=self)
       msgBox.exec_()
 
    def mainWidget(self):
-      # create icon toolbox
-      #tb = self.addToolBar("File")
-      #new = QAction(QIcon(self.resource_path("assets/save.svg")), "Save Python", self)
-      #new.setDisabled(True)
-      #tb.addAction(new)
-      #run = QAction(QIcon(self.resource_path("assets/run.svg")), "Run Python", self)
-      #tb.addAction(run)
-      #tb.actionTriggered[QAction].connect(self.on_toolbar_clicked)
-      
       vsplitter = QSplitter(Qt.Vertical)      
       hsplitter = QSplitter(Qt.Horizontal)
 
