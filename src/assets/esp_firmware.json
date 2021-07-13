@@ -1,0 +1,75 @@
+[
+    {
+	"id": "esp32",
+	"board": "V1.16 for ESP32 generic",
+	"info": "Micropython V1.16 for generic ESP32 boards (WROOM-32)",
+	"parms": {
+	    "baud": 460800,           "chip": "esp32",
+            "compress": null,         "connect_attempts": 7,
+            "encrypt": false,         "encrypt_files": null,
+            "erase_all": false,       "flash_freq": "40m",
+            "flash_mode": "dio",      "flash_size": "detect",
+            "ignore_flash_encryption_efuse_setting": false,
+            "no_compress": false,     "no_progress": false,
+            "no_stub": false,         "verify": false,
+	    "addr_filename": [ 4096, "esp32-20210623-v1.16.bin",
+			       "c0ddf3b5f2eb47a495c1270f8e33ef5b" ]
+	}
+    },
+    {
+	"id": "esp32_1.14",
+	"board": "V1.14 for ESP32 generic",
+	"info": "Micropython V1.14 for generic ESP32 boards (WROOM-32)",
+	"parms": {
+	    "baud": 460800,           "chip": "esp32",
+            "compress": null,         "connect_attempts": 7,
+            "encrypt": false,         "encrypt_files": null,
+            "erase_all": false,       "flash_freq": "40m",
+            "flash_mode": "dio",      "flash_size": "detect",
+            "ignore_flash_encryption_efuse_setting": false,
+            "no_compress": false,     "no_progress": false,
+            "no_stub": false,         "verify": false,
+	    "addr_filename": [ 4096, "esp32-idf4-20210202-v1.14.bin",
+			       "79c95c7557f4ec0b1c368c30b9e5b35e" ]
+	}
+    },
+    {
+	"id": "esp32spiram",
+	"board": "V1.16 for ESP32 with SPIRAM",
+	"info": "Micropython V1.16 for ESP32 boards with extra SPIRAM (WROVER-32)",
+	"parms": {
+	    "baud": 460800,           "chip": "esp32",
+            "compress": null,         "connect_attempts": 7,
+            "encrypt": false,         "encrypt_files": null,
+            "erase_all": false,       "flash_freq": "40m",
+            "flash_mode": "dio",      "flash_size": "detect",
+            "ignore_flash_encryption_efuse_setting": false,
+            "no_compress": false,     "no_progress": false,
+            "no_stub": false,         "verify": false,
+	    "addr_filename": [ 4096, "esp32spiram-20210623-v1.16.bin",
+			     "94f9684e080e49d7e0ee520c83d7e0cd"]
+	}
+    },
+    {
+	"id": "esp8266_2m",
+	"board": "V1.16 for ESP8266 with 2M flash or more",
+	"info": "Micropython V1.16 for ESP8266 boards with two megabytes of flash memory or more",
+	"addr_filename": [ 0, "esp8266-20210618-v1.16.bin",
+			   "1409b444dc4a8f06920ef7c9603f9955" ]
+    },
+    {
+	"id": "esp8266_1m",
+	"board": "V1.16 for ESP8266 with 1M flash",
+	"info": "Micropython V1.16 for ESP8266 boards with one megabyte of flash memory",
+	"addr_filename": [ 0, "esp8266-1m-20210618-v1.16.bin",
+			   "3e4a2332e5972ccbdc955e91b33f229c" ]
+    },
+    {
+	"id": "esp8266_512k",
+	"board": "V1.16 for ESP8266 with 512k flash",
+	"info": "Micropython V1.16 for ESP8266 boards with half a megabyte of flash memory",
+	"addr_filename": [ 0, "esp8266-512k-20210618-v1.16.bin",
+			   "c784f02d5c27fa0f0ff49207010ef9f6" ]
+    }
+]
+    

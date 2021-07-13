@@ -26,6 +26,7 @@ from board import Board
 from fileview import FileView
 from console import Console
 from editors import Editors
+from esp_installer import EspInstaller
 
 class Window(QMainWindow):
    def __init__(self, app):
@@ -34,7 +35,6 @@ class Window(QMainWindow):
       app.aboutToQuit.connect(self.on_exit)
 
    def on_exit(self):
-      print("exiting");
       self.board.close()
 
    def closeEvent(self, event):
@@ -85,7 +85,6 @@ class Window(QMainWindow):
       self.code = { "name": name, "code": code }
       
       # User has requested to save the code he edited
-      print("Save", name, code);
       self.on_board_request(True)
       self.board.cmd(Board.PUT_FILE, self.on_save_done, { "name": name, "code": code } )
       
@@ -105,7 +104,6 @@ class Window(QMainWindow):
 
    def on_run(self, name, code):
       # User has requested to run the current code
-      print("Run", name, code);
       self.code = { "name": name, "code": code }
       
       self.status("Running code ...");
@@ -140,26 +138,49 @@ class Window(QMainWindow):
             # else it's a newly created file
             self.editors.new(name)
 
-   def on_mkdir_done(self, success, result=None):
-      self.on_board_request(False)
-         
       # user wants to create a new directory
    def on_mkdir(self, name):
-      self.on_board_request(True)
-      self.board.cmd(Board.MKDIR, self.on_mkdir_done, { "name": name } )
+      try:
+         self.board.mkdir(name)
+      except Exception as e:
+         self.on_error(None, str(e))
       
    def on_delete(self, name):
       # close tab if present
       self.editors.close(name)
-      self.board.rm(name)
+      try:
+         self.board.rm(name)
+      except Exception as e:
+         self.on_error(None, str(e))
       
    def on_rename(self, old, new):
       self.editors.rename(old, new)
-      self.board.rename(old, new)
+      try:
+         self.board.rename(old, new)
+      except Exception as e:
+         self.on_error(None, str(e))
 
    def on_message(self, msg):
       msgBox = QMessageBox(QMessageBox.Critical, "Error", msg, parent=self)
       msgBox.exec_()
+
+   def on_do_flash(self):
+      # user has decided to really flash. So we close the serial connection
+      self.board.close()
+      
+   def on_firmware(self):
+      if EspInstaller.esp_flash_dialog(self.on_do_flash):
+
+         # close all editor tabs, clear the console and refresh the file view
+         
+         # disable most gui elements until averything has been reloaded
+         self.on_board_request(True)
+      
+         self.editors.closeAll()
+
+         # start scanning for board
+         self.progress(None)
+         self.board.cmd(Board.SCAN, self.on_scan_result)
 
    def mainWidget(self):
       vsplitter = QSplitter(Qt.Vertical)      
@@ -172,6 +193,7 @@ class Window(QMainWindow):
       self.fileview.mkdir.connect(self.on_mkdir)
       self.fileview.rename.connect(self.on_rename)
       self.fileview.message.connect(self.on_message)
+      self.fileview.firmware.connect(self.on_firmware)
       hsplitter.addWidget(self.fileview)
       hsplitter.setStretchFactor(0, 1)
 
@@ -202,37 +224,73 @@ class Window(QMainWindow):
          self.fileview.set(files)      
       
    def on_version(self, success, version=None):
-      self.status(self.board.getPort() + " connected, MicroPython " + version);
+      self.status(self.board.getPort() + " connected, MicroPython V{} on {}".format(version[2], version[0]));
+      self.fileview.sysname(version[0])
       self.on_board_request(False)
 
       # version received, request files
       self.on_board_request(True)
       self.board.cmd(Board.LISTDIR, self.on_listdir)
+
+   def on_retry_dialog_button(self, btn):
+      if btn.text() == "Flash...":
+         # the error is reported in the console
+         if EspInstaller.esp_flash_dialog(self.on_do_flash, self):
+            # disable most gui elements until averything has been reloaded
+            self.on_board_request(True)
+      
+            # re-start scanning for board
+            self.progress(None)
+            self.board.cmd(Board.SCAN, self.on_scan_result)
+         else:
+            # user doesn't want to flash. So there's not much we can do
+            self.close()
+      
+   def on_detect_failed(self):
+      self.msgBox = QMessageBox(QMessageBox.Question, 'No board found',
+                           "No MicroPython board was detected! "+
+                           "Do you want to flash the MicroPython firmware or retry "+
+                           "searching for a MicroPython board?", parent=self)
+      self.msgBox.addButton(self.msgBox.Retry)
+      self.msgBox.addButton("Flash...", self.msgBox.YesRole)
+      b = self.msgBox.addButton(self.msgBox.Cancel)
+      self.msgBox.setDefaultButton(b)
+      self.msgBox.buttonClicked.connect(self.on_retry_dialog_button)
+      ret = self.msgBox.exec_()
+
+      if ret ==  QMessageBox.Retry:
+         self.on_board_request(True)
+         self.progress(None)
+         self.board.cmd(Board.SCAN, self.on_scan_result)
+         return
+
+      if ret ==  QMessageBox.Cancel:
+         self.close()
       
    def on_scan_result(self, success):
-      print("Scan done", success);
+      self.status("Search done")
       self.on_board_request(False)
 
       if success:
          self.on_board_request(True)
          self.board.cmd(Board.GET_VERSION, self.on_version)
       else:
-         # the error is reported in the console
-         pass
-         # self.status("No board found");
-         # TODO: Ask user to install firmware
+         # trigger failure dialog via timer to not block the gui
+         # with the following dialogs
+         self.timer = QTimer()
+         self.timer.setSingleShot(True)
+         self.timer.timeout.connect(self.on_detect_failed)
+         self.timer.start(500)
          
    def on_console(self, a):
       self.console.appendBytes(a)
       
    def on_error(self, name, msg):
-      print("ERR", name, msg)
-      
       # assume the error message is an exception and try to parse
       # it as such. If that fails just display the message as
       # red text in the console
       
-      lines = msg.args[0].replace('\r', '').split("\n")
+      lines = msg.replace('\r', '').split("\n")
 
       # ignore line 0:  Traceback (most recent call last):
       # parse line 1..:   File "<stdin>", line 4, in <module>

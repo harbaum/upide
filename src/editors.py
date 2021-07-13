@@ -39,6 +39,10 @@ class EditorTabs(QTabWidget):
 
         return None
 
+    def closeAll(self):
+        self.clear()
+        self.stack.show(False)
+    
     def on_tab_close(self, index):
         # check if tab contains modified data
         if self.widget(index).isModified():
@@ -184,6 +188,9 @@ class Editors(QStackedWidget):
     def isModified(self):
         return self.tabs.isModified()
 
+    def closeAll(self):
+        self.tabs.closeAll()
+        
     def close(self, name):
         tab = self.tabs.get_index_by_file(name)
         if tab is not None:

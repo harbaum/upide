@@ -75,9 +75,6 @@ class BoardThread(QThread):
          elif self.cmd_code == Board.PUT_FILE:
             self.board.putFile(self.parms["name"], self.parms["code"])
             self.board.queue.put( (Board.RESULT, True ) )       
-         elif self.cmd_code == Board.MKDIR:
-            self.board.mkdir(self.parms["name"])
-            self.board.queue.put( (Board.RESULT, True ) )       
          elif self.cmd_code == Board.GET_FILE:
             result = {
                "code": self.board.getFile(self.parms["name"], self.file_progress),
@@ -99,6 +96,8 @@ class BoardThread(QThread):
          name = self.parms["name"] if self.cmd_code == Board.RUN else None
          self.board.queue.put( (Board.ERROR, name, sys.exc_info()[1]) )
 
+      self.board.cmd_code = None
+      
 class Serial(serial.Serial):
    def __init__(self, device):
       super().__init__(device, 115200, interCharTimeout=1, write_timeout=5)
@@ -178,7 +177,7 @@ class Board(QObject):
    code_downloaded = pyqtSignal()    
    console = pyqtSignal(bytes)
    progress = pyqtSignal(int)
-   error = pyqtSignal(str, RuntimeError)
+   error = pyqtSignal(str, str)
    status = pyqtSignal(str)
 
    # commands
@@ -188,7 +187,6 @@ class Board(QObject):
    GET_FILE = 4
    PUT_FILE = 5
    RUN = 6
-   MKDIR = 7
    
    # message code used by the thread
    CODE_DOWNLOADED = 1
@@ -232,7 +230,7 @@ class Board(QObject):
          elif msg[0] == Board.PROGRESS:
             self.progress.emit(msg[1])
          elif msg[0] == Board.ERROR:
-            self.error.emit(msg[1], msg[2])
+            self.error.emit(msg[1], msg[2].args[0])
          elif msg[0] == Board.STATUS:
             self.status.emit(msg[1])
          elif msg[0] == Board.RESULT:
@@ -283,25 +281,41 @@ class Board(QObject):
       return None
 
    def listDir(self):
+      # a file entry in unformatted flash looks like
+      # \xff\xff\xff\xff\xff\xff\xff\xff.\xff\xff\xff
+      
       command  = """
             import os
-            def listdir(dir_or_file):
+            def listdir(path):
                 try:
-                    children = os.listdir(dir_or_file)
+                    children = os.listdir(path)
                 except OSError:
-                    size = os.stat(dir_or_file)[6]
-                    return size
+                    try:
+                        size = os.stat(path)[6]
+                        return size
+                    except:
+                        return -2
                 else:
                     files = [ ]
                     for child in children:
-                        files.append([ child, listdir(dir_or_file + "/" + child)])
+                        # catch broken entries on unformatted pyboard
+                        if child.encode()[0] == 255:
+                            return -2
+
+                        if path == '/': path = ''
+                        files.append([ child, listdir(path + '/' + child)])
                     return files
 
-            print(listdir(""))
+            print(listdir("/"))
         """
 
+      # entries returning a negative size are reported broken. This e.g. happens
+      # if the pyboard is not properly formatted
       result = self.replDo(command)
-      print("Result:", result)
+      print("DIR:", ast.literal_eval(result))
+
+      # check if the file system contains errors (-2)
+      # my pyboard did not contain a valid filesystem at delivery. This could have
         
       return ast.literal_eval(result)
 
@@ -338,7 +352,10 @@ class Board(QObject):
       """Remove the specified file or directory."""
       command = """
         import os
-        os.remove('{0}')
+        try:
+            os.remove('{0}')
+        except:
+            os.rmdir('{0}')
         """.format(filename)
       self.replDo(command)
            
@@ -360,11 +377,11 @@ class Board(QObject):
       self.replDo(command)
       
    def getVersion(self):
-      ver = self.replDo("import os\rprint('{} on {}'.format(os.uname().release, os.uname().sysname))")
-      if ver is not None:        
-         return ver.strip()
-
-      return "<unknown>"
+      result = self.replDo("import os\rfor i in os.uname(): print( i )")
+      if result is not None:
+         return result.splitlines()
+      
+      return [ "<unknown>", "", "", "", "" ]
 
    def replPrepare(self):
       self.sendCtrl('a')
@@ -385,6 +402,7 @@ class Board(QObject):
 
       # cmd code has been sent by BoardThread
       if self.cmd_code == Board.RUN:
+         print("downloaded")
          self.queue.put( (Board.CODE_DOWNLOADED, ))
             
       # send ctrl-d and wait for "ok"

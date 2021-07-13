@@ -139,7 +139,7 @@ class FileModel(QAbstractItemModel):
          return index.internalPointer()      
    
    def insertRows(self, row, count, _parent=QModelIndex()):
-      print("insertRows()", row, count)
+      # print("insertRows()", row, count)
       self.beginInsertRows(_parent, row, row+count-1)
       for i in range(count):
          self.getNode(_parent).insertChild(row+i, FileNode(None) )
@@ -147,7 +147,7 @@ class FileModel(QAbstractItemModel):
       return True
    
    def removeRows(self, row, count, _parent=QModelIndex()):
-      print("removeRows()", row, count)
+      # print("removeRows()", row, count)
       self.beginRemoveRows(_parent, row, row+count-1);
       for i in range(count):
          self.getNode(_parent).removeChild(row+i)
@@ -206,12 +206,18 @@ class FileModel(QAbstractItemModel):
    def data(self, index, role):
       if not index.isValid():
          return None
+
+      node = self.getNode(index)
       
-      node = self.getNode(index) 
+      if role == Qt.ToolTipRole and  node.data(FileView.COL_SIZE) == -2:
+         return 'This filesystem is defective!'
+         
       if index.column() == FileView.COL_NAME and role == Qt.DecorationRole:
          # no size? -> folder
          if node.data(FileView.COL_SIZE) is None:
             return QWidget().style().standardIcon(getattr(QStyle, "SP_DirIcon"))
+         elif node.data(FileView.COL_SIZE) == -2:
+            return QIcon(self.resource_path("assets/broken.svg"))
          elif node.data(FileView.COL_NAME).endswith(".py"):
             return QIcon(self.resource_path("assets/python.svg"))
          else:
@@ -229,14 +235,13 @@ class FileModel(QAbstractItemModel):
       if not index.isValid(): return Qt.NoItemFlags
 
       node = index.internalPointer()
-      # print("Flags for", node.path())
 
       # root cannot be dragged
       if node.path() == "":
          return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDropEnabled
          
-      # boot.py and main.py cannot be dragged
-      if node.path() == "/boot.py" or node.path() == "/main.py":
+      # boot.py cannot be dragged
+      if node.path() == "/boot.py":
          return Qt.ItemIsEnabled | Qt.ItemIsSelectable;
       
       if not node.isDir():
@@ -253,11 +258,11 @@ class ItalicDelegate(QStyledItemDelegate):
    def paint(self, painter, option, index):
       if index.siblingAtColumn(FileView.COL_SIZE).data(Qt.DisplayRole) == -1:
          option.font.setItalic(True)
+      if index.siblingAtColumn(FileView.COL_SIZE).data(Qt.DisplayRole) == -2:
+         option.palette.setColor(QPalette.Text, QColor(255, 0, 0))
       QStyledItemDelegate.paint(self, painter, option, index)
 
 class FileView(QTreeView):
-   ROOTNAME = "Board"
-
    COL_NAME = 0
    COL_SIZE = 1
    
@@ -266,14 +271,20 @@ class FileView(QTreeView):
    mkdir = pyqtSignal(str)   
    delete = pyqtSignal(str)   
    rename = pyqtSignal(str, str)   
+   firmware = pyqtSignal()
    
    def __init__(self):
       super().__init__()
+      self.rootname = "Board"
+   
       self.setExpandsOnDoubleClick(False)
       self.setHeaderHidden(True)
       
       # https://stackoverflow.com/questions/782255/pyqt-and-context-menu
       self.contextMenu = QMenu(self);
+      self.firmwareAction = QAction("Firmware...", self.contextMenu);
+      self.firmwareAction.triggered.connect(self.on_context_firmware)
+      self.contextMenu.addAction(self.firmwareAction);
       self.newMenu = self.contextMenu.addMenu("New")      
       self.newAction = QAction("File...", self.newMenu);
       self.newAction.triggered.connect(self.on_context_new)
@@ -301,6 +312,9 @@ class FileView(QTreeView):
       self.setDragDropMode(QAbstractItemView.InternalMove)
       self.setDragEnabled(True)
 
+   def sysname(self, name):
+      self.rootname = name
+      
    def findNode(self, name, path = "", node = None):
       if node is None:
          node = self.model()._root.child(0)
@@ -330,7 +344,7 @@ class FileView(QTreeView):
                self.expand_(model, name[1:], index)
 
    def expandPath(self, name):
-      self.expand_(self.model(), (FileView.ROOTNAME + name).split("/"))
+      self.expand_(self.model(), (self.rootname + name).split("/"))
 
    # get modelindex for a named entry
    def getIndex(self, model, name, parent = QModelIndex()):
@@ -370,7 +384,7 @@ class FileView(QTreeView):
          return
 
       # add a new row
-      self.addToModel(self.model(), (FileView.ROOTNAME + fullname).split("/"), [ name, None ])      
+      self.addToModel(self.model(), (self.rootname + fullname).split("/"), [ name, None ])      
       
       # and create the directory
       self.mkdir.emit(self.context_entry[0] + "/" + name)
@@ -396,10 +410,13 @@ class FileView(QTreeView):
          return
 
       # add a new row
-      self.addToModel(self.model(), (FileView.ROOTNAME + fullname).split("/"), [ name, -1 ])      
+      self.addToModel(self.model(), (self.rootname + fullname).split("/"), [ name, -1 ])      
       
       # and open an (empty) editor window
       self.open.emit(self.context_entry[0] + "/" + name, -1)
+      
+   def on_context_firmware(self):
+      self.firmware.emit()
       
    def on_context_open(self):
       self.open.emit(self.context_entry[0], self.context_entry[1])
@@ -439,15 +456,15 @@ class FileView(QTreeView):
       # get a copy of the old entry
       entry = self.findNode(self.context_entry[0]).copy()
 
-      self.removeFromModel(self.model(), (FileView.ROOTNAME + self.context_entry[0]).split("/"))
-      self.addToModel(self.model(), (FileView.ROOTNAME + fullname).split("/"), [ name, 0 ])      
+      self.removeFromModel(self.model(), (self.rootname + self.context_entry[0]).split("/"))
+      self.addToModel(self.model(), (self.rootname + fullname).split("/"), [ name, 0 ])      
 
       # update entry (so directories get their children back)
       entry.name = name
       self.findNode(fullname).set(entry)      
 
       # keep selection on renamed object
-      self.setCurrentIndex(self.getIndex(self.model(), (FileView.ROOTNAME + fullname).split("/")))
+      self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))
 
       # and finally request the actual rename
       self.rename.emit(self.context_entry[0], fullname)
@@ -509,7 +526,7 @@ class FileView(QTreeView):
       name = fullname.split("/")[-1]
             
       # Instead of updating the entire tree view just remove the row
-      self.removeFromModel(self.model(), (FileView.ROOTNAME + fullname).split("/"))
+      self.removeFromModel(self.model(), (self.rootname + fullname).split("/"))
                
    def on_context_delete(self):
       qm = QMessageBox()
@@ -527,10 +544,13 @@ class FileView(QTreeView):
          name = index.model().path(index)
          self.context_entry = (name, size)
 
+         # only the root entry has the firmware entry
+         self.firmwareAction.setVisible(size == None and name == "")
+         
          # size is "None" for directories
 
-         # everything but the root dir, unsaved new files, boot.py and main.py can be renamed
-         self.renameAction.setEnabled(name != "" and size != -1 and name != "/boot.py" and name != "/main.py")
+         # everything but the root dir, unsaved new files and boot.py can be renamed
+         self.renameAction.setEnabled(name != "" and (size == None or size >= 0) and name != "/boot.py")
          
          # new files can be created for directories
          self.newMenu.setEnabled(size == None)
@@ -544,13 +564,12 @@ class FileView(QTreeView):
          # - the root directory
          # - directories which aren't empty
          # - boot.py
-         # - main.py
          # - newly created yet unsaved files
          if size is None and (name == "" or self.findNode(name).childCount() > 0):
             self.deleteAction.setEnabled(False)
-         elif size == -1:
+         elif size != None and size < 0:
             self.deleteAction.setEnabled(False)
-         elif size is not None and (name == "/boot.py" or name == "/main.py"):
+         elif size is not None and name == "/boot.py":
             self.deleteAction.setEnabled(False)
          else:
             self.deleteAction.setEnabled(True)
@@ -595,7 +614,7 @@ class FileView(QTreeView):
       if entry != None:
          entry.size = size
 
-      self.updateModel(self.model(), (FileView.ROOTNAME + name).split("/"), None, size)      
+      self.updateModel(self.model(), (self.rootname + name).split("/"), None, size)      
                   
    def getItems(self, files, path):
       items = [ ]
@@ -613,7 +632,7 @@ class FileView(QTreeView):
    def set(self, files):
       # invisible root item
       root = FileNode("")      
-      rootdir = FileNode(FileView.ROOTNAME)
+      rootdir = FileNode(self.rootname)
       root.addChild(rootdir)
       for i in self.getItems(files, ""):
          rootdir.addChild(i)
@@ -656,8 +675,8 @@ class FileView(QTreeView):
       if node.size == -1:
          return False
       
-      # boot.py and main.py cannot be dragged
-      return node.path() != "/boot.py" and node.path() != "/main.py"
+      # boot.py cannot be dragged
+      return node.path() != "/boot.py"
    
    def isDroppable(self, event):
       node = self.eventNode(event)
@@ -671,7 +690,6 @@ class FileView(QTreeView):
 
          # check if user is trying to drop a directory into itself
          # or one of its own subdirectories
-         # print("drop", self.dragNode.path(), "into", node.path())
          if node.isDir():
             # trying to drop into itself?
             if node.path() == self.dragNode.path():
@@ -694,18 +712,13 @@ class FileView(QTreeView):
          self.dropNode = None
          super().mousePressEvent(event)
             
-   # drag'n drop        
-   # https://stackoverflow.com/questions/63899567/dragmoveevent-doesnt-work-properly-when-overriding-mousemoveevent-qt-drag
-    
    def dragEnterEvent(self, event: QDragEnterEvent):
-      # print("dragEnterEvent", self.eventNode(event))
       self.selectionModel().clear()
       if self.dragNode is not None:
          super().dragEnterEvent(event)
       
    def dragMoveEvent(self, event):
       if self.eventNode(event) != self.dropNode:
-         # print("update", self.eventNode(event), self.dropNode)
          self.dropNode = self.eventNode(event)
          self.selectionModel().clear()
          if self.isDroppable(event):
@@ -722,18 +735,16 @@ class FileView(QTreeView):
             self.message.emit("A file or directory with that name already exists");
             return
 
-         print("drop", self.dragNode.path(), "to", fullname);
-
          # get a copy of the old entry
          entry = self.findNode(self.dragNode.path()).copy()         
-         self.removeFromModel(self.model(), (FileView.ROOTNAME + self.dragNode.path()).split("/"))
-         self.addToModel(self.model(), (FileView.ROOTNAME + fullname).split("/"), [ self.dragNode.name, 0 ])      
+         self.removeFromModel(self.model(), (self.rootname + self.dragNode.path()).split("/"))
+         self.addToModel(self.model(), (self.rootname + fullname).split("/"), [ self.dragNode.name, 0 ])      
 
          # update entry (so directories get their children back)
          self.findNode(fullname).set(entry)      
 
          # keep selection on renamed object
-         self.setCurrentIndex(self.getIndex(self.model(), (FileView.ROOTNAME + fullname).split("/")))
+         self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))
 
          # and finally request the actual rename
          self.rename.emit(self.dragNode.path(), fullname)
