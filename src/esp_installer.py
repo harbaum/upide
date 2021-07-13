@@ -119,8 +119,6 @@ class EspThread(QThread):
          args.addr_filename[0][1].close()
                                 
       self.done.emit(ok)
-
-      print("ESPTHREAD DONE");
       
 # listen for text output of background processes
 class ListenerThread(QThread):
