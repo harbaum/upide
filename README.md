@@ -12,7 +12,8 @@ be created, edited, run etc from with the IDE.
 ## Status
 
 µPIDE is still under development but does 95% of the job just fine.
-It has been tested with the ESP32, the Lego Spike and the ftDuino32.
+It has been tested with the ESP32, ESP8266, PyBoard V1.1, Lego Spike
+and the ftDuino32.
 
 A single-exe binary for windows can be found in the [releases](https://github.com/harbaum/upide/releases/latest).
 
