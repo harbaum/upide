@@ -16,9 +16,14 @@ It has been tested with the ESP32, the Lego Spike and the ftDuino32.
 
 A single-exe binary for windows can be found in the [releases](https://github.com/harbaum/upide/releases/latest).
 
+The since V1.0-beta4 µPIDE includes a flasher for the ESP32 and
+ESP8266 boards. Tegether with the included firmware images getting
+started doesn't require any other software.
+
+![esp flasher](esp_flasher.png)
+
 ## Planned features
 
-- Ability to flash the micropython firmware (at least for ESP32)
 - File import and export
 - Built-in demos and examples
 - ...
