@@ -75,14 +75,27 @@ class Window(QMainWindow):
       self.on_board_request(False)
       if success:
          self.status("Saved "+self.code["name"]);
-         self.editors.saved(self.code["name"])
-         self.fileview.saved(self.code["name"], len(self.code["code"]))
+
+         if self.code["new_file"]:
+            # xyz
+            print("handle new file");
+
+            # add file to file view
+            self.fileview.add(self.code["name"], len(self.code["code"]))
+                
+            # open a editor view for the new file
+            self.editors.new(self.code["name"], self.code["code"])
+         else:
+            # not a new file, so update existing file info
+            self.editors.saved(self.code["name"])
+            self.fileview.saved(self.code["name"], len(self.code["code"]))
+         
          self.code = None
       else:
          self.status("Saving aborted with error");
       
-   def on_save(self, name, code):
-      self.code = { "name": name, "code": code }
+   def on_save(self, name, code, new_file=False):
+      self.code = { "name": name, "code": code, "new_file": new_file }
       
       # User has requested to save the code he edited
       self.on_board_request(True)
@@ -153,6 +166,17 @@ class Window(QMainWindow):
       except Exception as e:
          self.on_error(None, str(e))
       
+   def on_import(self, local, name):
+      print("IMP", local, name)
+
+      # load the file into memory
+      try:
+         with open(local) as f:
+            code = f.read()
+            self.on_save(name, code, True)
+      except:
+         self.on_message("Import failed")
+      
    def on_rename(self, old, new):
       self.editors.rename(old, new)
       try:
@@ -194,6 +218,7 @@ class Window(QMainWindow):
       self.fileview.rename.connect(self.on_rename)
       self.fileview.message.connect(self.on_message)
       self.fileview.firmware.connect(self.on_firmware)
+      self.fileview.host_import.connect(self.on_import)
       hsplitter.addWidget(self.fileview)
       hsplitter.setStretchFactor(0, 1)
 
@@ -202,6 +227,7 @@ class Window(QMainWindow):
       self.editors.save.connect(self.on_save)
       self.editors.stop.connect(self.on_stop)
       self.editors.closed.connect(self.fileview.on_editor_closed)
+      self.editors.changed.connect(self.fileview.on_select)
       hsplitter.addWidget(self.editors)
       hsplitter.setStretchFactor(1, 10)
 

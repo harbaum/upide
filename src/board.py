@@ -94,7 +94,12 @@ class BoardThread(QThread):
          
          # report error in console
          name = self.parms["name"] if self.cmd_code == Board.RUN else None
-         self.board.queue.put( (Board.ERROR, name, sys.exc_info()[1]) )
+         errmsg = sys.exc_info()[1]
+         if isinstance(errmsg, int) and len(sys.exc_info()) > 1:
+            errmsg = sys.exc_info()[2]
+         
+         print("Report:", str(errmsg))
+         self.board.queue.put( (Board.ERROR, name, str(errmsg)) )
 
       self.board.cmd_code = None
       
@@ -230,7 +235,7 @@ class Board(QObject):
          elif msg[0] == Board.PROGRESS:
             self.progress.emit(msg[1])
          elif msg[0] == Board.ERROR:
-            self.error.emit(msg[1], msg[2].args[0])
+            self.error.emit(msg[1], msg[2])
          elif msg[0] == Board.STATUS:
             self.status.emit(msg[1])
          elif msg[0] == Board.RESULT:
@@ -372,8 +377,17 @@ class Board(QObject):
       """Rename the specified file or directory."""
       command = """
         import os
-        os.rename('{0}', '{1}')
-        """.format(old, new)
+        try:
+          os.rename('{0}', '{1}')
+        except:
+          with open('{2}', 'rb') as src, open('{3}', 'wb') as dst:
+            while True:
+              buffer = src.read(32)
+              if not buffer: 
+                break
+              dst.write(buffer)
+          os.remove('{4}') 
+        """.format(old, new, old, new, old)
       self.replDo(command)
       
    def getVersion(self):

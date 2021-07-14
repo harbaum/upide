@@ -272,6 +272,7 @@ class FileView(QTreeView):
    delete = pyqtSignal(str)   
    rename = pyqtSignal(str, str)   
    firmware = pyqtSignal()
+   host_import = pyqtSignal(str, str)
    
    def __init__(self):
       super().__init__()
@@ -311,7 +312,8 @@ class FileView(QTreeView):
       self.setAcceptDrops(True)
       self.setDragDropMode(QAbstractItemView.InternalMove)
       self.setDragEnabled(True)
-
+      self.dragNode = None
+      
    def sysname(self, name):
       self.rootname = name
       
@@ -544,6 +546,8 @@ class FileView(QTreeView):
          name = index.model().path(index)
          self.context_entry = (name, size)
 
+         self.setCurrentIndex(index)
+      
          # only the root entry has the firmware entry
          self.firmwareAction.setVisible(size == None and name == "")
          
@@ -684,7 +688,7 @@ class FileView(QTreeView):
 
       # check if this is the current parent node of dragNode as
       # dropping on the current parent is not useful
-      if self.dragNode is not None:
+      if event.source() == self and self.dragNode is not None:
          if self.dragNode._parent == node:
             return False
 
@@ -713,11 +717,16 @@ class FileView(QTreeView):
          super().mousePressEvent(event)
             
    def dragEnterEvent(self, event: QDragEnterEvent):
+      # print("dragEnterEvent()", event)
       self.selectionModel().clear()
-      if self.dragNode is not None:
+      if event.source() == self and self.dragNode is not None:
          super().dragEnterEvent(event)
-      
+      else:
+         event.acceptProposedAction()
+         self.dropNode = None
+         
    def dragMoveEvent(self, event):
+      # print("dragMoveEvent()", event)
       if self.eventNode(event) != self.dropNode:
          self.dropNode = self.eventNode(event)
          self.selectionModel().clear()
@@ -727,25 +736,64 @@ class FileView(QTreeView):
                  QItemSelectionModel.Rows | QItemSelectionModel.Select)
 
    def dropEvent(self, event):
+      # print("dropEvent()", event)
+
       self.selectionModel().clear()
-      if self.isDroppable(event) and self.dragNode is not None:
-         # build target name
-         fullname = self.eventNode(event).path() + "/" + self.dragNode.name;
-         if self.exists(fullname):
-            self.message.emit("A file or directory with that name already exists");
-            return
+      if self.isDroppable(event):
+         if event.source() != self:
+            # no dragnode set means that the dragging came from the outside
+            #print("Proposed:", event.proposedAction(), Qt.CopyAction)
+            #print("Mime formats:", event.mimeData().formats())
+            #print("Mime url:", event.mimeData().urls())
+            #print("Mime text:", event.mimeData().text())
 
-         # get a copy of the old entry
-         entry = self.findNode(self.dragNode.path()).copy()         
-         self.removeFromModel(self.model(), (self.rootname + self.dragNode.path()).split("/"))
-         self.addToModel(self.model(), (self.rootname + fullname).split("/"), [ self.dragNode.name, 0 ])      
+            if len(event.mimeData().urls()) > 0:            
+               url = event.mimeData().urls()[0]
+               if url.isLocalFile():
+                  src_name = url.toLocalFile()
+                  fullname = self.eventNode(event).path() + "/" + os.path.basename(src_name)
 
-         # update entry (so directories get their children back)
-         self.findNode(fullname).set(entry)      
+                  # print("Import", src_name, "to", fullname)
 
-         # keep selection on renamed object
-         self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))
+                  # check if the target file already exists
+                  if self.exists(fullname):
+                     self.message.emit("A file with that name already exists!");
+                     return
 
-         # and finally request the actual rename
-         self.rename.emit(self.dragNode.path(), fullname)
+                  if not fullname.lower().endswith(".py"):
+                     self.message.emit("Unable to import non-python file.");
+                     return
+               
+                  self.host_import.emit(src_name, fullname)
+                  
+         else:
+            # build target name
+            fullname = self.eventNode(event).path() + "/" + self.dragNode.name;
+            if self.exists(fullname):
+               self.message.emit("A file or directory with that name already exists");
+               return
 
+            # get a copy of the old entry
+            entry = self.findNode(self.dragNode.path()).copy()         
+            self.removeFromModel(self.model(), (self.rootname + self.dragNode.path()).split("/"))
+            self.addToModel(self.model(), (self.rootname + fullname).split("/"), [ self.dragNode.name, 0 ])      
+
+            # update entry (so directories get their children back)
+            self.findNode(fullname).set(entry)      
+
+            # keep selection on renamed object
+            self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))
+
+            # and finally request the actual rename
+            self.rename.emit(self.dragNode.path(), fullname)
+
+   def add(self, fullname, length):
+      name = fullname.split("/")[-1]
+      # add new file to tree
+      self.addToModel(self.model(), (self.rootname + fullname).split("/"), [ name, length ])
+      # and select it
+      self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))
+
+   def on_select(self, fullname):
+      print("select", fullname);
+      self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))

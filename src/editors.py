@@ -127,6 +127,7 @@ class Editors(QStackedWidget):
     save = pyqtSignal(str, str)
     stop = pyqtSignal()
     closed = pyqtSignal(str)
+    changed = pyqtSignal(str)
     
     def __init__(self):
         super().__init__()
@@ -138,6 +139,7 @@ class Editors(QStackedWidget):
         # the tabwidget holds all editor instances
         self.tabs = EditorTabs(self)
         self.tabs.closed.connect(self.on_tab_closed)
+        self.tabs.currentChanged.connect(self.on_current_changed)
         self.addWidget(self.tabs)
 
     def exists(self, name):
@@ -206,3 +208,9 @@ class Editors(QStackedWidget):
         # five focus to topmost editor (if there is one)
         if self.tabs.count() != 0:
             self.tabs.focusTop()
+            
+    def on_current_changed(self, tab):
+        # user has selected a different tab. Tell fileview to select the
+        # corresponding file
+        self.changed.emit(self.tabs.widget(tab).name)
+        
