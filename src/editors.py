@@ -50,9 +50,8 @@ class EditorTabs(QTabWidget):
             ret = qm.question(self,'Really close?', "This window contains unsaved changes.\nReally close?", qm.Yes | qm.No)
             if ret == qm.No: return
 
-        name = self.widget(index).name
+        self.closed.emit(self.widget(index).name)
         self.removeTab(index)
-        self.closed.emit(name)
 
         # if no more tabs are left, then bring the
         # label back to front to make it visible
@@ -131,10 +130,7 @@ class Editors(QStackedWidget):
     
     def __init__(self):
         super().__init__()
-        # display "no open files" when no tabs are open
-        label = QLabel("No open files")
-        label.setAlignment(Qt.AlignCenter)
-        self.addWidget(label)
+        self.addWidget(self.splash(self))
 
         # the tabwidget holds all editor instances
         self.tabs = EditorTabs(self)
@@ -142,6 +138,47 @@ class Editors(QStackedWidget):
         self.tabs.currentChanged.connect(self.on_current_changed)
         self.addWidget(self.tabs)
 
+    def splash(self, parent):
+        vbox_w = QWidget(parent)
+        vbox = QVBoxLayout()
+        vbox_w.setLayout(vbox)
+
+        vbox.addStretch(2)
+        
+        # title, version, copyright, ...
+        title = QLabel("µPIDE", vbox_w)
+        font = title.font()
+        font.setPointSize(24)
+        font.setBold(True)
+        title.setFont(font)
+        title.setAlignment(Qt.AlignCenter)
+        vbox.addWidget(title)
+
+        version = QLabel("V1.0-beta5", vbox_w)
+        version.setAlignment(Qt.AlignCenter)
+        vbox.addWidget(version)
+        
+        detail = QLabel("A beginners Micropython IDE", vbox_w)
+        detail.setAlignment(Qt.AlignCenter)
+        vbox.addWidget(detail)
+
+        vbox.addStretch(1)
+
+        copyright = QLabel("(c) 2021 Till Harbaum <till@harbaum.org>", vbox_w)
+        copyright.setAlignment(Qt.AlignCenter)
+        vbox.addWidget(copyright)
+
+        link = QLabel("<a href=\"http://github.com/harbaum/upide\">µPIDE on Github</a>", vbox_w)
+        link.setTextFormat(Qt.RichText)
+        link.setTextInteractionFlags(Qt.TextBrowserInteraction);
+        link.setOpenExternalLinks(True);
+        link.setAlignment(Qt.AlignCenter)
+        vbox.addWidget(link)
+
+        vbox.addStretch(2)
+        
+        return vbox_w
+        
     def exists(self, name):
         return self.tabs.exists(name)
         
@@ -199,6 +236,13 @@ class Editors(QStackedWidget):
             self.tabs.on_tab_close(tab)
 
     def on_tab_closed(self, name):
+        # check if the tab to be closed is currently being run. Stop
+        # the running program in that case        
+        tab = self.tabs.get_index_by_file(name)
+        if tab is not None and tab >= 0:
+            if self.tabs.widget(tab).button_mode == False:
+                self.stop.emit()
+            
         self.closed.emit(name)
 
     def rename(self, old, new):
@@ -212,5 +256,6 @@ class Editors(QStackedWidget):
     def on_current_changed(self, tab):
         # user has selected a different tab. Tell fileview to select the
         # corresponding file
-        self.changed.emit(self.tabs.widget(tab).name)
+        if tab >= 0:
+            self.changed.emit(self.tabs.widget(tab).name)
         

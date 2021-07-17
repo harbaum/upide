@@ -466,7 +466,7 @@ class FileView(QTreeView):
       self.findNode(fullname).set(entry)      
 
       # keep selection on renamed object
-      self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))
+      self.select(fullname)
 
       # and finally request the actual rename
       self.rename.emit(self.context_entry[0], fullname)
@@ -782,18 +782,17 @@ class FileView(QTreeView):
             self.findNode(fullname).set(entry)      
 
             # keep selection on renamed object
-            self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))
+            self.select(fullname)
 
             # and finally request the actual rename
             self.rename.emit(self.dragNode.path(), fullname)
 
+   def select(self, fullname):
+      self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))
+            
    def add(self, fullname, length):
       name = fullname.split("/")[-1]
       # add new file to tree
       self.addToModel(self.model(), (self.rootname + fullname).split("/"), [ name, length ])
       # and select it
-      self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))
-
-   def on_select(self, fullname):
-      print("select", fullname);
-      self.setCurrentIndex(self.getIndex(self.model(), (self.rootname + fullname).split("/")))
+      self.select(fullname)

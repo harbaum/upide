@@ -227,9 +227,9 @@ class Window(QMainWindow):
       self.editors.save.connect(self.on_save)
       self.editors.stop.connect(self.on_stop)
       self.editors.closed.connect(self.fileview.on_editor_closed)
-      self.editors.changed.connect(self.fileview.on_select)
+      self.editors.changed.connect(self.fileview.select)
       hsplitter.addWidget(self.editors)
-      hsplitter.setStretchFactor(1, 10)
+      hsplitter.setStretchFactor(1, 3)
 
       vsplitter.addWidget(hsplitter)
       vsplitter.setStretchFactor(0, 10)
