@@ -378,7 +378,7 @@ class CodeEditor(QPlainTextEdit):
         
         cr = self.contentsRect();
         self.lineNumberArea.setGeometry(QRect(cr.left(), cr.top(),
-                                        self.lineNumberAreaWidth(), cr.height()))
+                     self.lineNumberAreaWidth(), cr.height()))
 
     def lineNumberAreaPaintEvent(self, event):
         painter = QPainter(self.lineNumberArea)

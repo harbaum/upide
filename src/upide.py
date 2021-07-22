@@ -33,6 +33,7 @@ class Window(QMainWindow):
       super(Window, self).__init__()
       self.initUI()
       app.aboutToQuit.connect(self.on_exit)
+      self.sysname = None
 
    def on_exit(self):
       self.board.close()
@@ -73,11 +74,11 @@ class Window(QMainWindow):
    
    def on_save_done(self, success = None):
       self.on_board_request(False)
+      self.console.enable(True)
       if success:
          self.status("Saved "+self.code["name"]);
 
          if self.code["new_file"]:
-            # xyz
             print("handle new file");
 
             # add file to file view
@@ -99,6 +100,7 @@ class Window(QMainWindow):
       
       # User has requested to save the code he edited
       self.on_board_request(True)
+      self.console.enable(False)
       self.board.cmd(Board.PUT_FILE, self.on_save_done, { "name": name, "code": code } )
       
    def on_code_downloaded(self):
@@ -110,6 +112,7 @@ class Window(QMainWindow):
 
    def on_run_done(self, success):
       self.on_board_request(False)
+      self.console.enable(True)
       self.console.enable_input(False)
       self.editors.focus() # give focus back to topmost editor
       if success: self.status("Code execution successful");
@@ -122,6 +125,7 @@ class Window(QMainWindow):
       self.status("Running code ...");
       self.board.code_downloaded.connect(self.on_code_downloaded)
       self.on_board_request(True)
+      self.console.enable(False)
       self.board.cmd(Board.RUN, self.on_run_done, { "name": name, "code": code } )
       
    def on_stop(self):
@@ -131,6 +135,7 @@ class Window(QMainWindow):
       # file has been loaded on user request
    def on_file(self, success, result=None):
       self.on_board_request(False)
+      self.console.enable(True)
       if success:
          self.editors.new(result["name"], result["code"])
 
@@ -146,6 +151,7 @@ class Window(QMainWindow):
          if size >= 0:
             # if size is > 0 this is an existing file, so load it
             self.on_board_request(True)
+            self.console.enable(False)
             self.board.cmd(Board.GET_FILE, self.on_file, { "name": name, "size": size } )
          else:
             # else it's a newly created file
@@ -193,12 +199,13 @@ class Window(QMainWindow):
       self.board.close()
       
    def on_firmware(self):
-      if EspInstaller.esp_flash_dialog(self.on_do_flash):
+      if EspInstaller.esp_flash_dialog(self.on_do_flash, self.sysname, self.board.getPort(), self):
 
          # close all editor tabs, clear the console and refresh the file view
          
          # disable most gui elements until averything has been reloaded
          self.on_board_request(True)
+         self.console.enable(False)
       
          self.editors.closeAll()
 
@@ -236,34 +243,53 @@ class Window(QMainWindow):
 
       # the console is at the bottom
       self.console = Console()
+      self.console.interact.connect(self.on_console_interact)
+      
       vsplitter.addWidget(self.console)
       vsplitter.setStretchFactor(1, 1)
       
       return vsplitter
 
+   def on_repl(self, status, msg=""):
+      self.on_board_request(False)
+      self.console.enable(True)
+   
+   def on_console_interact(self, start):
+      if start:
+         # clicking the console prompt icon starts repl interaction
+         self.on_board_request(True)
+         self.board.cmd(Board.REPL, self.on_repl)
+      else:
+         self.board.stop()
+   
    def status(self, str):
       self.statusBar().showMessage(str);      
 
    def on_listdir(self, success, files=None):
       self.on_board_request(False)
+      self.console.enable(True)
       if success:
          self.fileview.set(files)      
       
    def on_version(self, success, version=None):
-      self.status(self.board.getPort() + " connected, MicroPython V{} on {}".format(version[2], version[0]));
+      self.status("{} connected, MicroPython V{} on {}".format(self.board.getPort(), version[2], version[0]));
       self.fileview.sysname(version[0])
+      self.sysname = version[0]
       self.on_board_request(False)
+      self.console.enable(True)
 
       # version received, request files
       self.on_board_request(True)
+      self.console.enable(False)
       self.board.cmd(Board.LISTDIR, self.on_listdir)
 
    def on_retry_dialog_button(self, btn):
       if btn.text() == "Flash...":
          # the error is reported in the console
-         if EspInstaller.esp_flash_dialog(self.on_do_flash, self):
+         if EspInstaller.esp_flash_dialog(self.on_do_flash, parent=self):
             # disable most gui elements until averything has been reloaded
             self.on_board_request(True)
+            self.console.enable(False)
       
             # re-start scanning for board
             self.progress(None)
@@ -286,6 +312,7 @@ class Window(QMainWindow):
 
       if ret ==  QMessageBox.Retry:
          self.on_board_request(True)
+         self.console.enable(False)
          self.progress(None)
          self.board.cmd(Board.SCAN, self.on_scan_result)
          return
@@ -296,9 +323,11 @@ class Window(QMainWindow):
    def on_scan_result(self, success):
       self.status("Search done")
       self.on_board_request(False)
+      self.console.enable(True)
 
       if success:
          self.on_board_request(True)
+         self.console.enable(False)
          self.board.cmd(Board.GET_VERSION, self.on_version)
       else:
          # trigger failure dialog via timer to not block the gui
@@ -386,6 +415,7 @@ class Window(QMainWindow):
       # start scanning for board
       self.progress(None)
       self.on_board_request(True)
+      self.console.enable(False)
       self.board.cmd(Board.SCAN, self.on_scan_result)
 
       self.show()

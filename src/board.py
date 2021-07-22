@@ -84,6 +84,9 @@ class BoardThread(QThread):
          elif self.cmd_code == Board.RUN:
             self.board.run(self.parms["code"], self.run_output)
             self.board.queue.put( (Board.RESULT, True ) )       
+         elif self.cmd_code == Board.REPL:
+            self.board.interactive()
+            self.board.queue.put( (Board.RESULT, True ) )       
          else:
             print("Unexpected command", self.cmd_code)
             self.board.queue.put( (Board.RESULT, False, "Unexpected command" ))
@@ -108,17 +111,19 @@ class Serial(serial.Serial):
       super().__init__(device, 115200, interCharTimeout=1, write_timeout=5)
       self._buffer = b""
 
-   def readUntil(self, timeout, seq, callback = None):
+   def readUntil(self, timeout, seq=None, callback=None):
       # there may already be data in the buffer which should go with
       # the callback
       if callback:
          # the final marker may already be in the buffer as well
-         if seq in self._buffer: callback(self._buffer[:self._buffer.find(seq)])         
-         else:                   callback(self._buffer)
+         if seq is not None and seq in self._buffer:
+            callback(self._buffer[:self._buffer.find(seq)])         
+         else:
+            callback(self._buffer)
       
       # read until a given sequence is found or if a timeout is reached
       start = time.time()
-      while (timeout == 0 or time.time() - start < timeout ) and not seq in self._buffer:
+      while (timeout == 0 or time.time() - start < timeout ) and (seq is None or not seq in self._buffer):
          time.sleep(0.01)
          data = self.poll()
          
@@ -128,11 +133,13 @@ class Serial(serial.Serial):
             # WARNING: This really only works for single char seq as a longer sequence
             # may be split over several data chunks and may not be detected. EOF is a
             # single character, so this is fine here
-            if seq in data: callback(data[:data.find(seq)])
-            else:           callback(data)
+            if seq is not None and seq in data:
+               callback(data[:data.find(seq)])
+            else:
+               callback(data)
 
       # remove everything up to detected pattern from buffer
-      if seq in self._buffer:
+      if seq is not None and seq in self._buffer:
          data = self._buffer[:self._buffer.find(seq)]
          self._buffer = self._buffer[self._buffer.find(seq)+len(seq):]
          return ( True, data )
@@ -192,6 +199,7 @@ class Board(QObject):
    GET_FILE = 4
    PUT_FILE = 5
    RUN = 6
+   REPL = 7
    
    # message code used by the thread
    CODE_DOWNLOADED = 1
@@ -207,6 +215,7 @@ class Board(QObject):
       self.serial = None
       self.cmd_code = None
       self.thread_running = False
+      self.interact = False
 
       self.queue = Queue()
       
@@ -274,8 +283,12 @@ class Board(QObject):
       return True
 
    def stop(self):
-      # stop a (user) code by sending ctrl-c
-      self.sendCtrl('c')
+      if self.interact:
+         # stop the repl process
+         self.interact = False
+      else:         
+         # stop a (user) code by sending ctrl-c
+         self.sendCtrl('c')
     
    def run(self, cmd, cb = None):
       result = self.replDo(cmd, cb)
@@ -501,7 +514,7 @@ class Board(QObject):
       return self.serial is not None
 
    def getPort(self):
-      if self.serial is None: return "<none>"
+      if self.serial is None: return None
       return self.serial.port
                 
    def detect(self, cb=None):
@@ -530,3 +543,22 @@ class Board(QObject):
          print("waiting for thread to end")
          while not self.thread.isFinished():
             time.sleep(.1);
+
+   def on_interactive_output(self, msg):
+      self.queue.put( (Board.CONSOLE, msg ) )
+
+   def interactive(self):
+      # flush any input buffer
+      self.serial.readUntil(.1)
+      self.serial._buffer = b''
+      self.interact = True
+      
+      self.sendCtrl('b')
+      data = self.serial.readUntil(1, b"for more information.\r\n>>> ")
+      if data[0] == True:
+         self.on_interactive_output(data[1]+b"for more information.\r\n>>>" )
+         while self.interact:
+            self.serial.readUntil(1, None, self.on_interactive_output)
+            self.serial._buffer = b''
+      else:
+         raise RuntimeError("Failed to enter repl")

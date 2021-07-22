@@ -1,6 +1,7 @@
 [
     {
 	"id": "esp32",
+	"sysname": "ESP32",
 	"board": "V1.16 for ESP32 generic",
 	"info": "Micropython V1.16 for generic ESP32 boards (WROOM-32)",
 	"parms": {
@@ -18,6 +19,7 @@
     },
     {
 	"id": "esp32_1.14",
+	"sysname": "ESP32",
 	"board": "V1.14 for ESP32 generic",
 	"info": "Micropython V1.14 for generic ESP32 boards (WROOM-32)",
 	"parms": {
@@ -35,6 +37,7 @@
     },
     {
 	"id": "esp32spiram",
+	"sysname": "ESP32",
 	"board": "V1.16 for ESP32 with SPIRAM",
 	"info": "Micropython V1.16 for ESP32 boards with extra SPIRAM (WROVER-32)",
 	"parms": {
@@ -52,6 +55,7 @@
     },
     {
 	"id": "esp8266_2m",
+	"sysname": "ESP8266",
 	"board": "V1.16 for ESP8266 with 2M flash or more",
 	"info": "Micropython V1.16 for ESP8266 boards with two megabytes of flash memory or more",
 	"parms": {
@@ -69,6 +73,7 @@
     },
     {
 	"id": "esp8266_1m",
+	"sysname": "ESP8266",
 	"board": "V1.16 for ESP8266 with 1M flash",
 	"info": "Micropython V1.16 for ESP8266 boards with one megabyte of flash memory",
 	"parms": {
@@ -86,6 +91,7 @@
     },
     {
 	"id": "esp8266_512k",
+	"sysname": "ESP8266",
 	"board": "V1.16 for ESP8266 with 512k flash",
 	"info": "Micropython V1.16 for ESP8266 boards with half a megabyte of flash memory",
 	"parms": {
