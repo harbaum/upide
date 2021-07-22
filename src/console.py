@@ -48,7 +48,7 @@ class Console(QPlainTextEdit):
         self.btn_prompt.setStyleSheet("background-color: rgba(255, 255, 255, 0);");
         self.btn_prompt.pressed.connect(self.on_prompt)
         self.interactive = False
-        
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
 
@@ -60,14 +60,13 @@ class Console(QPlainTextEdit):
         
     def on_prompt(self):
         self.clear()
-        if not self.interactive:        
+        self.enable_input(not self.interactive)
+        if not self.interactive:
             self.interactive = True
-            self.input_enabled = True
             self.btn_prompt.setIcon(QIcon(self.resource_path("assets/console_stop.svg")))
             self.interact.emit(True)
         else:
             self.interactive = False
-            self.input_enabled = False
             self.btn_prompt.setIcon(QIcon(self.resource_path("assets/console_prompt.svg")))
             self.interact.emit(False)            
         
@@ -81,10 +80,6 @@ class Console(QPlainTextEdit):
         self.setReadOnly(not enable)
         if enable: self.setFocus()
 
-#    def mousePressEvent(self, event: QMouseEvent):
-#        self.input_enabled = True
-#        self.clicked.emit()
-        
     def keyPressEvent(self, event):
         if self.input_enabled:
             key = event.text()
