@@ -259,3 +259,8 @@ class Editors(QStackedWidget):
         if tab >= 0:
             self.changed.emit(self.tabs.widget(tab).name)
         
+    def on_select(self, name):
+        # user has selected a different file in the fileview. Raise
+        # the matching editor if it exists
+        tab = self.tabs.get_index_by_file(name)
+        if tab is not None: self.tabs.setCurrentIndex(tab)

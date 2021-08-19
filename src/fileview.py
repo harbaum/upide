@@ -273,6 +273,7 @@ class FileView(QTreeView):
    rename = pyqtSignal(str, str)   
    firmware = pyqtSignal()
    host_import = pyqtSignal(str, str)
+   selection_changed = pyqtSignal(str)
    
    def __init__(self):
       super().__init__()
@@ -313,7 +314,7 @@ class FileView(QTreeView):
       self.setDragDropMode(QAbstractItemView.InternalMove)
       self.setDragEnabled(True)
       self.dragNode = None
-      
+
    def sysname(self, name):
       self.rootname = name
       
@@ -647,6 +648,14 @@ class FileView(QTreeView):
 
       # expand root
       self.expandPath("")
+
+      self.selectionModel().selectionChanged.connect(self.onSelectionChanged)
+
+   def onSelectionChanged(self, sel, desel):
+      if len(sel.indexes()) > 0:
+         index = sel.indexes()[0]
+         if index.isValid():
+            self.selection_changed.emit(index.internalPointer().path())
 
    def disable(self, d):
       self.setDisabled(d)
