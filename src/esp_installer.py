@@ -48,7 +48,7 @@ class EspThread(QThread):
    def resource_path(self, relative_path):
       if hasattr(sys, '_MEIPASS'):
          return os.path.join(sys._MEIPASS, relative_path)
-      return os.path.join(os.path.abspath('.'), relative_path)
+      return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
       
    def md5sum(self, fname, sum):
       hash_md5 = hashlib.md5()
@@ -208,18 +208,18 @@ class EspInstaller(QVBoxLayout):
               "Your board \""+sysname+"\" doesn't seem to be supported by "+
               "the ESP flasher. Proceed with care!", QMessageBox().Ok)
             
-      self.board_sysbox = QComboBox()
-      for s in sysnames: self.board_sysbox.addItem(s)
+      self.type_cbox = QComboBox()
+      for s in sysnames: self.type_cbox.addItem(s)
       if sysname is not None and sysname.upper() in sysnames:
-         self.board_sysbox.setCurrentText(sysname.upper())
-      self.board_sysbox.currentTextChanged.connect(self.on_sys_changed)
-      boardbox.addWidget(self.board_sysbox)
+         self.type_cbox.setCurrentText(sysname.upper())
+      self.type_cbox.currentTextChanged.connect(self.on_sys_changed)
+      boardbox.addWidget(self.type_cbox)
       
       self.board_cbox = QComboBox()
       self.board_cbox.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon);
       # only list those matching the selected sysname
       for f in self.config["firmware"]:
-         if f["sysname"].upper() == self.board_sysbox.currentText().upper():
+         if f["sysname"].upper() == self.type_cbox.currentText().upper():
             self.board_cbox.addItem(f["board"], f)
       boardbox.addWidget(self.board_cbox, 1)
       self.erase_flash = QCheckBox("Erase all data")
@@ -297,7 +297,7 @@ class EspInstaller(QVBoxLayout):
    def resource_path(self, relative_path):
       if hasattr(sys, '_MEIPASS'):
          return os.path.join(sys._MEIPASS, relative_path)
-      return os.path.join(os.path.abspath('.'), relative_path)
+      return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
       
    def start_redirect(self):
       # connection to server thread to receive data
@@ -386,6 +386,7 @@ class EspInstaller(QVBoxLayout):
    def enable_gui(self, enable):
       self.button_box.setEnabled(enable)
       self.port_cbox.setEnabled(enable)
+      self.type_cbox.setEnabled(enable)
       self.board_cbox.setEnabled(enable)
       self.erase_flash.setEnabled(enable)
          

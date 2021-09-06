@@ -63,7 +63,13 @@ class BoardThread(QThread):
       result = None
 
       try:
-         if self.cmd_code == Board.SCAN:
+         if self.cmd_code == Board.CONNECT:
+            print("Should connect", self.parms)
+            if not self.board.open(self.parms):
+               self.board.queue.put( (Board.RESULT, False) )
+            else:
+               self.board.queue.put( (Board.RESULT, True) )       
+         elif self.cmd_code == Board.SCAN:
             self.board.detect(self.send_status)
             self.board.queue.put( (Board.RESULT, True) )       
          elif self.cmd_code == Board.GET_VERSION:
@@ -200,6 +206,7 @@ class Board(QObject):
    PUT_FILE = 5
    RUN = 6
    REPL = 7
+   CONNECT = 8
    
    # message code used by the thread
    CODE_DOWNLOADED = 1
@@ -214,6 +221,7 @@ class Board(QObject):
       print("Board init");
       self.serial = None
       self.cmd_code = None
+      self.thread = None
       self.thread_running = False
       self.interact = False
 
@@ -516,7 +524,10 @@ class Board(QObject):
    def getPort(self):
       if self.serial is None: return None
       return self.serial.port
-                
+
+   def getPorts(self):
+      return serial.tools.list_ports.comports()      
+   
    def detect(self, cb=None):
       print("Trying to auto detect");
         

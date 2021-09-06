@@ -29,8 +29,9 @@ from editors import Editors
 from esp_installer import EspInstaller
 
 class Window(QMainWindow):
-   def __init__(self, app):
+   def __init__(self, app, noscan):
       super(Window, self).__init__()
+      self.noscan = noscan
       self.initUI()
       app.aboutToQuit.connect(self.on_exit)
       self.sysname = None
@@ -51,7 +52,7 @@ class Window(QMainWindow):
    def resource_path(self, relative_path):
       if hasattr(sys, '_MEIPASS'):
          return os.path.join(sys._MEIPASS, relative_path)
-      return os.path.join(os.path.abspath('.'), relative_path)
+      return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
 
    def on_board_request(self, busy):
       # a board request is to be started. Disable all parts of the
@@ -388,7 +389,65 @@ class Window(QMainWindow):
          else:
             if val > 100: raise RuntimeError("PROEX " + str(val))      
             self.progressBar.setMaximum(100)
-            self.progressBar.setValue(val)            
+            self.progressBar.setValue(val)
+            
+   def open_port_dialog(self):
+      # open a port selection dialog if upide is configured not
+      # to scan for devices by itself
+      
+      self.port_dialog = QDialog(self)
+      self.port_dialog.setWindowTitle("Select port")
+      self.port_dialog.resize(300,-1)
+
+      vbox = QVBoxLayout()
+      
+      # create a dropdown list of serial ports ...
+      port_w = QWidget()
+      portbox = QHBoxLayout()
+      portbox.setContentsMargins(0,0,0,0)
+      port_w.setLayout(portbox)
+      portbox.addWidget(QLabel("Port:"))
+      self.port_cbox = QComboBox()
+      self.port_cbox.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon);
+      for p in self.board.getPorts(): self.port_cbox.addItem(str(p), p)
+
+      portbox.addWidget(self.port_cbox, 1)
+      vbox.addWidget(port_w)
+
+      button_box = QDialogButtonBox(
+         QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+         Qt.Horizontal,
+         self.port_dialog
+      )
+
+      button_box.accepted.connect(self.port_accept)
+      button_box.rejected.connect(self.port_reject)
+      vbox.addWidget(button_box)
+
+      self.port_dialog.setLayout(vbox)
+
+      self.port_dialog.setWindowModality(Qt.ApplicationModal)
+      self.port = None
+      self.port_dialog.exec_()
+
+      self.port_dialog = None
+
+      # user did not select a port. So close the entire app
+      if not self.port:
+         self.close()
+      else:
+         # user specified a port. So try to access device there
+         self.on_board_request(True)
+         self.status("Connecting port {}...".format(self.port));
+         self.board.cmd(Board.CONNECT, self.on_scan_result, self.port)
+
+   def port_accept(self):
+      self.port = self.port_cbox.currentData().device;
+      self.port_dialog.close()
+      
+   def port_reject(self):
+      self.port = None
+      self.port_dialog.close()
 
    def initUI(self):
       self.setWindowTitle("µPIDE - Micropython IDE")
@@ -414,14 +473,24 @@ class Window(QMainWindow):
       self.board.status.connect(self.status)
 
       # start scanning for board
-      self.progress(None)
-      self.on_board_request(True)
+      self.progress(False)
       self.console.enable(False)
-      self.board.cmd(Board.SCAN, self.on_scan_result)
-
       self.show()
 
+      # scan if the user isn't suppressing this
+      if not self.noscan:      
+         self.on_board_request(True)
+         self.board.cmd(Board.SCAN, self.on_scan_result)
+      else:
+         # ask user for port
+         self.timer = QTimer(self)
+         self.timer.singleShot(100, self.open_port_dialog)
+
 if __name__ == '__main__':
+   # get own name. If name contains "noscan" then don't do
+   # a automatic scan but ask for a port instead
+   noscan = "noscan" in os.path.splitext(os.path.basename(sys.argv[0]))[0].lower()
+   
    app = QApplication(sys.argv)
-   a = Window(app)
+   a = Window(app, noscan)
    sys.exit(app.exec_())
