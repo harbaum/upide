@@ -1,0 +1,6 @@
+<!-- example file index for µPIDE -->
+<examples>
+  <section name="pyboard" description="PyBoard">
+    <example name="leds.py" description="Running led lights"/>      
+  </section>
+</examples>
