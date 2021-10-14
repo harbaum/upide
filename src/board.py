@@ -95,7 +95,7 @@ class BoardThread(QThread):
             self.board.queue.put( (Board.RESULT, True ) )       
          else:
             print("Unexpected command", self.cmd_code)
-            self.board.queue.put( (Board.RESULT, False, "Unexpected command" ))
+            self.board.queue.put( (Board.RESULT, False, self.tr("Unexpected command") ))
       except:
          # report failure
          print("Exception in BoardTread():", sys.exc_info())
@@ -216,9 +216,9 @@ class Board(QObject):
    CONSOLE = 5
    ERROR = 6
             
-   def __init__(self):
-      super().__init__()
-      print("Board init");
+   def __init__(self, parent=None):
+      super().__init__(parent)
+
       self.serial = None
       self.cmd_code = None
       self.thread = None
@@ -416,7 +416,7 @@ class Board(QObject):
       if result is not None:
          return result.splitlines()
       
-      return [ "<unknown>", "", "", "", "" ]
+      return [ self.tr("<unknown>"), "", "", "", "" ]
 
    def replPrepare(self):
       self.sendCtrl('a')
@@ -429,7 +429,7 @@ class Board(QObject):
          # repl could not be entered, try to ctrl-c
          self.interrupt()
          if not self.replPrepare():
-            raise RuntimeError("Error: Board not responding to command!")
+            raise RuntimeError(self.tr("Error: Board not responding to command!"))
       
       result = None
 
@@ -534,11 +534,12 @@ class Board(QObject):
       ports = serial.tools.list_ports.comports()
       for port in ports:
          print("Checking port", port)
-         if cb: cb("Checking port {}".format(port.device))
+         if cb: cb(self.tr("Checking port {}").format(port.device))
          if self.open(port.device):
             return
-            
-      raise RuntimeError("No board found!")
+
+      print(self.tr("no board"))
+      raise RuntimeError(self.tr("No board found!"))
 
    def input(self, data):
       # forward and keyboard input directly to the board
@@ -572,4 +573,4 @@ class Board(QObject):
             self.serial.readUntil(1, None, self.on_interactive_output)
             self.serial._buffer = b''
       else:
-         raise RuntimeError("Failed to enter repl")
+         raise RuntimeError(self.tr("Failed to enter repl"))

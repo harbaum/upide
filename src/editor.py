@@ -102,13 +102,13 @@ class PythonHighlighter(QSyntaxHighlighter):
             # 'class' followed by an identifier
             (r'\bclass\b\s*(\w+)', 1, STYLES['defclass']),
   
-            # From '#' until a newline
-            (r'#[^\n]*', 0, STYLES['comment']),
-  
             # Numeric literals
             (r'\b[+-]?[0-9]+[lL]?\b', 0, STYLES['numbers']),
             (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, STYLES['numbers']),
             (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, STYLES['numbers']),
+            
+            # From '#' until a newline
+            (r'#[^\n]*', 0, STYLES['comment']),  
         ]
   
         # Build a QRegExp for each pattern
@@ -244,10 +244,14 @@ class CodeEditor(QPlainTextEdit):
         self.btn_save.resize(32, 32)
         self.btn_save.setStyleSheet("background-color: rgba(255, 255, 255, 0);");
         self.btn_save.pressed.connect(self.on_save)
-        self.btn_save.setToolTip("Save this code");
+        self.btn_save.setToolTip(self.tr("Save this code") + " (CTRL-S)");
         self.btn_save.setHidden(True)
         
         self.set_button_mode(True)
+
+        # some extra keyboard shortcuts
+        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self.on_save)
+        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.on_run)
 
         # start a timer to track modifications at a low rate of max 10Hz to
         # reduce work load a little bit
@@ -259,8 +263,6 @@ class CodeEditor(QPlainTextEdit):
         return self.code_is_modified
         
     def checkModified(self):
-        #print("A", self.text().encode())
-        #print("B", self.code.encode())        
         return self.text() != self.code
         
     def on_edit(self):
@@ -301,12 +303,12 @@ class CodeEditor(QPlainTextEdit):
         if mode == True:
             self.btn_run.setHidden(False)
             self.btn_run.setIcon(QIcon(self.resource_path("assets/editor_run.svg")))
-            self.btn_run.setToolTip("Run this code");
+            self.btn_run.setToolTip(self.tr("Run this code") + " (CTRL-R)");
             self.btn_save.setHidden(not self.checkModified())
         elif mode == False:
             self.btn_run.setHidden(False)
             self.btn_run.setIcon(QIcon(self.resource_path("assets/editor_stop.svg")))
-            self.btn_run.setToolTip("Stop running code");
+            self.btn_run.setToolTip(self.tr("Stop running code") + " (CTRL-R)");
             self.btn_save.setHidden(True)  # cannot save while running
         else:
             self.btn_run.setHidden(True)
@@ -324,13 +326,16 @@ class CodeEditor(QPlainTextEdit):
         return QPlainTextEdit.event(self, event)
 
     def on_save(self):
-        self.save.emit(self.name, self.text())
+        # only really emit this signal if the save button is enabled
+        if self.btn_save.isVisible():        
+            self.save.emit(self.name, self.text())
         
     def on_run(self):
-        if self.button_mode == True:
-            self.run.emit(self.name, self.text())
-        elif self.button_mode == False:
-            self.stop.emit()
+        if self.btn_run.isVisible():        
+            if self.button_mode == True:
+                self.run.emit(self.name, self.text())
+            elif self.button_mode == False:
+                self.stop.emit()
 
     def resource_path(self, relative_path):
         if hasattr(sys, '_MEIPASS'):

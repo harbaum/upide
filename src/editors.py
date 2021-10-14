@@ -47,7 +47,9 @@ class EditorTabs(QTabWidget):
         # check if tab contains modified data
         if self.widget(index).isModified():
             qm = QMessageBox()
-            ret = qm.question(self,'Really close?', "This window contains unsaved changes.\nReally close?", qm.Yes | qm.No)
+            ret = qm.question(self,self.tr('Really close?'),
+                              self.tr("This window contains unsaved changes.")+
+                              "\n"+self.tr("Really close?"), qm.Yes | qm.No)
             if ret == qm.No: return
 
         self.closed.emit(self.widget(index).name)
@@ -100,12 +102,11 @@ class EditorTabs(QTabWidget):
             if state: 
                 # enable all buttons
                 self.widget(i).set_button_mode(True)
+            elif name != None:
+                # make all buttons stop buttons
+                self.widget(i).set_button_mode(False)
             else:
-                # make given button a stop button, disable all others        
-                if name is not None and self.widget(i).name == name:
-                    self.widget(i).set_button_mode(False)
-                else:
-                    self.widget(i).set_button_mode(None)
+                self.widget(i).set_button_mode(None)
 
     def isModified(self):
         # return true if any of the editor tabs
@@ -154,21 +155,22 @@ class Editors(QStackedWidget):
         title.setAlignment(Qt.AlignCenter)
         vbox.addWidget(title)
 
-        version = QLabel("V1.0-beta7", vbox_w)
+        version = QLabel("V1.0-beta8", vbox_w)
         version.setAlignment(Qt.AlignCenter)
         vbox.addWidget(version)
         
-        detail = QLabel("A beginners Micropython IDE", vbox_w)
+        detail = QLabel(self.tr("A beginners Micropython IDE"), vbox_w)
         detail.setAlignment(Qt.AlignCenter)
         vbox.addWidget(detail)
 
         vbox.addStretch(1)
 
-        copyright = QLabel("(c) 2021 Till Harbaum <till@harbaum.org>", vbox_w)
+        copyright = QLabel(self.tr("(c) 2021 Till Harbaum <till@harbaum.org>"), vbox_w)
         copyright.setAlignment(Qt.AlignCenter)
         vbox.addWidget(copyright)
 
-        link = QLabel("<a href=\"http://github.com/harbaum/upide\">µPIDE on Github</a>", vbox_w)
+        link = QLabel("<a href=\"http://github.com/harbaum/upide\">"+
+                      self.tr("{} on Github").format("µPIDE")+"</a>", vbox_w)
         link.setTextFormat(Qt.RichText)
         link.setTextInteractionFlags(Qt.TextBrowserInteraction);
         link.setOpenExternalLinks(True);

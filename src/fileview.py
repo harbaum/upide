@@ -22,6 +22,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
 from board import Board
+from examples import Examples
 
 class FileNode(object):
    def __init__(self, name, size = None): 
@@ -273,36 +274,38 @@ class FileView(QTreeView):
    rename = pyqtSignal(str, str)   
    firmware = pyqtSignal()
    host_import = pyqtSignal(str, str)
+   example_import = pyqtSignal(str, str, bool)
+   example_imported = pyqtSignal(str, str)
    selection_changed = pyqtSignal(str)
    
    def __init__(self):
       super().__init__()
-      self.rootname = "Board"
+      self.rootname = self.tr("Board")
    
       self.setExpandsOnDoubleClick(False)
       self.setHeaderHidden(True)
       
       # https://stackoverflow.com/questions/782255/pyqt-and-context-menu
       self.contextMenu = QMenu(self);
-      self.firmwareAction = QAction("Firmware...", self.contextMenu);
+      self.firmwareAction = QAction(self.tr("Firmware..."), self.contextMenu);
       self.firmwareAction.triggered.connect(self.on_context_firmware)
       self.contextMenu.addAction(self.firmwareAction);
-      self.newMenu = self.contextMenu.addMenu("New")      
-      self.newAction = QAction("File...", self.newMenu);
+      self.newMenu = self.contextMenu.addMenu(self.tr("New"))      
+      self.newAction = QAction(self.tr("File..."), self.newMenu);
       self.newAction.triggered.connect(self.on_context_new)
       self.newMenu.addAction(self.newAction);
-      self.newDirAction = QAction("Directory...", self.newMenu);
+      self.newDirAction = QAction(self.tr("Directory..."), self.newMenu);
       self.newDirAction.triggered.connect(self.on_context_new_dir)
       self.newMenu.addAction(self.newDirAction);
-      self.openAction = QAction("Open", self.contextMenu);
+      self.openAction = QAction(self.tr("Open"), self.contextMenu);
       self.openAction.setDisabled(True)
       self.openAction.triggered.connect(self.on_context_open)
       self.contextMenu.addAction(self.openAction);
-      self.renameAction = QAction("Rename...", self.contextMenu);
+      self.renameAction = QAction(self.tr("Rename..."), self.contextMenu);
       self.renameAction.setDisabled(True)
       self.renameAction.triggered.connect(self.on_context_rename)
       self.contextMenu.addAction(self.renameAction);
-      self.deleteAction = QAction("Delete...", self.contextMenu);
+      self.deleteAction = QAction(self.tr("Delete..."), self.contextMenu);
       self.deleteAction.setDisabled(True)
       self.deleteAction.triggered.connect(self.on_context_delete)
       self.contextMenu.addAction(self.deleteAction)
@@ -315,6 +318,64 @@ class FileView(QTreeView):
       self.setDragEnabled(True)
       self.dragNode = None
 
+      # load examples
+      self.examplesMenu = None
+      self.examples = Examples()
+      self.examples.loaded.connect(self.on_examples_loaded)
+      self.examples.imported.connect(self.on_example_imported)
+      self.examples.scan()
+      
+   def on_context_example(self, action):
+      # check if a file of that name exists
+      fullname = self.context_entry[0] + "/" + action.property("filename").split("/")[-1]
+      if self.exists(fullname):
+         self.message.emit(self.tr("A file or directory with that name already exists"));
+         return
+
+      # import the example
+      self.example_import.emit(fullname, action.property("filename"), action.property("local"))
+
+   def examplesInstall(self, menu, examples):
+      for e in examples:
+         example = examples[e]
+         desc = example["description"]
+         
+         # check if action exists
+         action = None
+         for a in menu.actions():
+            if a.text() == desc:
+               action = a
+
+         if "children" in example:
+            # only install action if it does not exist yet
+            if not action:               
+               self.examplesInstall(menu.addMenu(desc), example["children"])
+            else:
+               self.examplesInstall(action.menu(), example["children"])
+         else:
+            if not action:
+               action = QAction(desc, menu)
+               action.setDisabled(False)
+               menu.addAction(action)
+
+            action.setProperty("filename", e)
+            action.setProperty("local", example["local"])
+      
+   def on_examples_loaded(self, examples):
+      # integrate examples into context menu
+      if not self.examplesMenu:
+         self.examplesMenu = self.contextMenu.addMenu(self.tr("Examples"))
+         self.examplesMenu.triggered.connect(self.on_context_example)
+
+      # add entries
+      self.examplesInstall(self.examplesMenu, examples)
+
+   def on_example_imported(self, name, code):
+      self.example_imported.emit(name, code)
+      
+   def requestExample(self, name, src, local):
+      return self.examples.requestImport(name, src, local)
+      
    def sysname(self, name):
       self.rootname = name
       
@@ -369,13 +430,12 @@ class FileView(QTreeView):
       return True
    
    def on_context_new_dir(self):
-      name, ok = QInputDialog.getText(self, 'New directory', 'Enter new directory name:')
+      name, ok = QInputDialog.getText(self, self.tr('New directory'), self.tr('Enter new directory name:'))
       if not ok: return
 
       # check if this is a valid name
       if not self.isValidFilename(name):
-         self.message.emit("The directory name must not be empty and "+
-                           "must not contain the characters \\,/,:,*,\",<,> or |");
+         self.message.emit(self.tr("The directory name must not be empty and must not contain the characters \\,/,:,*,\",<,> or |"));
          return
 
       # create full path name
@@ -383,7 +443,7 @@ class FileView(QTreeView):
       
       # check if file already exists
       if self.exists(fullname):
-         self.message.emit("A file or directory with that name already exists");
+         self.message.emit(self.tr("A file or directory with that name already exists"));
          return
 
       # add a new row
@@ -393,12 +453,11 @@ class FileView(QTreeView):
       self.mkdir.emit(self.context_entry[0] + "/" + name)
       
    def on_context_new(self):
-      name, ok = QInputDialog.getText(self, 'New file', 'Enter new file name:')
+      name, ok = QInputDialog.getText(self, self.tr('New file'), self.tr('Enter new file name:'))
       if not ok: return
 
       if not self.isValidFilename(name):
-         self.message.emit("The file name must not be empty and "+
-                           "must not contain the characters \\,/,:,*,\",<,> or |");
+         self.message.emit(self.tr("The file name must not be empty and must not contain the characters \\,/,:,*,\",<,> or |"));
          return
                
       if not name.endswith(".py"):
@@ -409,7 +468,7 @@ class FileView(QTreeView):
       
       # check if file already exists
       if self.exists(fullname):
-         self.message.emit("A file or directory with that name already exists");
+         self.message.emit(self.tr("A file or directory with that name already exists"));
          return
 
       # add a new row
@@ -440,7 +499,7 @@ class FileView(QTreeView):
 
       # check if this is a valid name
       if name == "":
-         self.message.emit("The file name must not be empty!");
+         self.message.emit(self.tr("The file name must not be empty!"));
          return
 
       # re-append file extension if present
@@ -453,7 +512,7 @@ class FileView(QTreeView):
       pathparts.append(name)
       fullname = "/".join(pathparts)
       if self.exists(fullname):
-         self.message.emit("A file with that name already exists");
+         self.message.emit(self.tr("A file with that name already exists"));
          return False
       
       # get a copy of the old entry
@@ -533,7 +592,7 @@ class FileView(QTreeView):
                
    def on_context_delete(self):
       qm = QMessageBox()
-      ret = qm.question(self,'Really delete?', "Do you really want to delete "+self.context_entry[0].split("/")[-1]+" from the board?", qm.Yes | qm.No)
+      ret = qm.question(self, self.tr('Really delete?'), self.tr("Do you really want to delete {} from the board?").format(self.context_entry[0].split("/")[-1]), qm.Yes | qm.No)
       if ret == qm.Yes:
          self.remove(self.context_entry[0])
          self.delete.emit(self.context_entry[0])
@@ -558,8 +617,9 @@ class FileView(QTreeView):
          self.renameAction.setEnabled(name != "" and (size == None or size >= 0) and name != "/boot.py")
          
          # new files can be created for directories
-         self.newMenu.setEnabled(size == None)
-         
+         self.newMenu.menuAction().setVisible(size == None)
+         if self.examplesMenu: self.examplesMenu.menuAction().setVisible(size == None)
+
          # the open entry is visible for all regular files but only
          # files ending with *.py can be opened
          self.openAction.setVisible(size != None)
@@ -766,11 +826,11 @@ class FileView(QTreeView):
 
                   # check if the target file already exists
                   if self.exists(fullname):
-                     self.message.emit("A file with that name already exists!");
+                     self.message.emit(self.tr("A file with that name already exists"));
                      return
 
                   if not fullname.lower().endswith(".py"):
-                     self.message.emit("Unable to import non-python file.");
+                     self.message.emit(self.tr("Unable to import non-python file."));
                      return
                
                   self.host_import.emit(src_name, fullname)
@@ -779,7 +839,7 @@ class FileView(QTreeView):
             # build target name
             fullname = self.eventNode(event).path() + "/" + self.dragNode.name;
             if self.exists(fullname):
-               self.message.emit("A file or directory with that name already exists");
+               self.message.emit(self.tr("A file or directory with that name already exists"));
                return
 
             # get a copy of the old entry

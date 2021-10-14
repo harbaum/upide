@@ -31,6 +31,7 @@ from esp_installer import EspInstaller
 class Window(QMainWindow):
    def __init__(self, app, noscan):
       super(Window, self).__init__()
+
       self.noscan = noscan
       self.initUI()
       app.aboutToQuit.connect(self.on_exit)
@@ -42,14 +43,16 @@ class Window(QMainWindow):
    def closeEvent(self, event):
       if self.editors.isModified():      
          qm = QMessageBox()
-         ret = qm.question(self,'Really quit?', "Your workspace contains unsaved changes. Really quit?", qm.Yes | qm.No)
+         ret = qm.question(self,self.tr('Really quit?'),
+                           self.tr("Your workspace contains unsaved changes.")+
+                           "\n"+self.tr("Really quit?"), qm.Yes | qm.No)
          if ret == qm.No:
             event.ignore();
             return
 
       event.accept()
 
-   def resource_path(self, relative_path):
+   def resource_path(relative_path):
       if hasattr(sys, '_MEIPASS'):
          return os.path.join(sys._MEIPASS, relative_path)
       return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
@@ -77,7 +80,7 @@ class Window(QMainWindow):
       self.on_board_request(False)
       self.console.enable(True)
       if success:
-         self.status("Saved "+self.code["name"]);
+         self.status(self.tr("Saved {}").format(self.code["name"]))
 
          if self.code["new_file"]:
             print("handle new file");
@@ -94,7 +97,7 @@ class Window(QMainWindow):
          
          self.code = None
       else:
-         self.status("Saving aborted with error");
+         self.status(self.tr("Saving aborted with error"));
       
    def on_save(self, name, code, new_file=False):
       self.code = { "name": name, "code": code, "new_file": new_file }
@@ -116,14 +119,14 @@ class Window(QMainWindow):
       self.console.enable(True)
       self.console.enable_input(False)
       self.editors.focus() # give focus back to topmost editor
-      if success: self.status("Code execution successful");
-      else:       self.status("Code execution aborted with error");
+      if success: self.status(self.tr("Code execution successful"));
+      else:       self.status(self.tr("Code execution aborted with error"));
 
    def on_run(self, name, code):
       # User has requested to run the current code
       self.code = { "name": name, "code": code }
       
-      self.status("Running code ...");
+      self.status(self.tr("Running code ..."));
       self.board.code_downloaded.connect(self.on_code_downloaded)
       self.on_board_request(True)
       self.console.enable(False)
@@ -172,17 +175,22 @@ class Window(QMainWindow):
          self.board.rm(name)
       except Exception as e:
          self.on_error(None, str(e))
+
+   def on_example_imported(self, name, code):
+      self.on_save(name, code, True)
+         
+   def on_example(self, name, src, local):
+      # user has requested an example to be loaded
+      self.fileview.requestExample(name, src, local)
       
    def on_import(self, local, name):
-      print("IMP", local, name)
-
       # load the file into memory
       try:
          with open(local) as f:
             code = f.read()
             self.on_save(name, code, True)
       except:
-         self.on_message("Import failed")
+         self.on_message(self.tr("Import failed"))
       
    def on_rename(self, old, new):
       self.editors.rename(old, new)
@@ -192,7 +200,7 @@ class Window(QMainWindow):
          self.on_error(None, str(e))
 
    def on_message(self, msg):
-      msgBox = QMessageBox(QMessageBox.Critical, "Error", msg, parent=self)
+      msgBox = QMessageBox(QMessageBox.Critical, self.tr("Error"), msg, parent=self)
       msgBox.exec_()
 
    def on_do_flash(self):
@@ -227,6 +235,8 @@ class Window(QMainWindow):
       self.fileview.message.connect(self.on_message)
       self.fileview.firmware.connect(self.on_firmware)
       self.fileview.host_import.connect(self.on_import)
+      self.fileview.example_import.connect(self.on_example)
+      self.fileview.example_imported.connect(self.on_example_imported)
       hsplitter.addWidget(self.fileview)
       hsplitter.setStretchFactor(0, 1)
 
@@ -274,7 +284,7 @@ class Window(QMainWindow):
          self.fileview.set(files)      
       
    def on_version(self, success, version=None):
-      self.status("{} connected, MicroPython V{} on {}".format(self.board.getPort(), version[2], version[0]));
+      self.status(self.tr("{0} connected, MicroPython V{1} on {2}").format(self.board.getPort(), version[2], version[0]));
       self.fileview.sysname(version[0])
       self.sysname = version[0]
       self.on_board_request(False)
@@ -286,7 +296,7 @@ class Window(QMainWindow):
       self.board.cmd(Board.LISTDIR, self.on_listdir)
 
    def on_retry_dialog_button(self, btn):
-      if btn.text() == "Flash...":
+      if btn.text() == self.tr("Flash..."):
          # the error is reported in the console
          if EspInstaller.esp_flash_dialog(self.on_do_flash, parent=self):
             # disable most gui elements until averything has been reloaded
@@ -301,12 +311,12 @@ class Window(QMainWindow):
             self.close()
       
    def on_detect_failed(self):
-      self.msgBox = QMessageBox(QMessageBox.Question, 'No board found',
-                           "No MicroPython board was detected! "+
-                           "Do you want to flash the MicroPython firmware or retry "+
-                           "searching for a MicroPython board?", parent=self)
+      self.msgBox = QMessageBox(QMessageBox.Question, self.tr('No board found'),
+                           self.tr("No MicroPython board was detected!")+"\n\n"+
+                           self.tr("Do you want to flash the MicroPython firmware or retry "
+                                   "searching for a MicroPython board?"), parent=self)
       self.msgBox.addButton(self.msgBox.Retry)
-      self.msgBox.addButton("Flash...", self.msgBox.YesRole)
+      self.msgBox.addButton(self.tr("Flash..."), self.msgBox.YesRole)
       b = self.msgBox.addButton(self.msgBox.Cancel)
       self.msgBox.setDefaultButton(b)
       self.msgBox.buttonClicked.connect(self.on_retry_dialog_button)
@@ -323,7 +333,7 @@ class Window(QMainWindow):
          self.close()
       
    def on_scan_result(self, success):
-      self.status("Search done")
+      self.status(self.tr("Search done"))
       self.on_board_request(False)
       self.console.enable(True)
 
@@ -367,7 +377,7 @@ class Window(QMainWindow):
          # ctrl-c gives a KeyboardInterrupt: which may be confusing since
          # the user has probably pressed the stop button. So replace
          # the message
-         lines[i] = lines[i].replace("KeyboardInterrupt:", "Stopped by user")
+         lines[i] = lines[i].replace("KeyboardInterrupt:", self.tr("Stopped by user"))
          
          self.editors.highlight(name, errline, "\n".join(lines[i:]))
                                 
@@ -438,7 +448,7 @@ class Window(QMainWindow):
       else:
          # user specified a port. So try to access device there
          self.on_board_request(True)
-         self.status("Connecting port {}...".format(self.port));
+         self.status(self.tr("Connecting port {}...").format(self.port));
          self.board.cmd(Board.CONNECT, self.on_scan_result, self.port)
 
    def port_accept(self):
@@ -462,10 +472,10 @@ class Window(QMainWindow):
       
       self.setCentralWidget(self.mainWidget())
       self.resize(640,480)
-      self.status("Starting ...");
+      self.status(self.tr("Starting ..."));
 
       # setup board interface
-      self.board = Board()      
+      self.board = Board(self)      
       self.console.input.connect(self.board.input)
       self.board.console.connect(self.on_console)
       self.board.progress.connect(self.progress)
@@ -490,7 +500,12 @@ if __name__ == '__main__':
    # get own name. If name contains "noscan" then don't do
    # a automatic scan but ask for a port instead
    noscan = "noscan" in os.path.splitext(os.path.basename(sys.argv[0]))[0].lower()
-   
+
    app = QApplication(sys.argv)
+   
+   tr = QTranslator()
+   tr.load(QLocale.system().name(), Window.resource_path("assets/i18n"))
+   app.installTranslator(tr)
+   
    a = Window(app, noscan)
    sys.exit(app.exec_())
