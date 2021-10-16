@@ -156,13 +156,15 @@ class EspInstaller(QVBoxLayout):
       self.savedSize = { True: None, False: QSize(480,480) }
       self.retval = False
 
+      parent.setWindowTitle(self.tr("ESP MicroPython Installer"))
+      
       try:
          # read esp configurations      
          with open(self.resource_path("assets/esp_firmware.json"), "r") as f:
             self.config = { "firmware": json.loads(f.read()) }
          ports = serial.tools.list_ports.comports()
       except Exception as e:
-         msg1 = QLabel("Error loading ESP firmware data")
+         msg1 = QLabel(self.tr("Error loading ESP firmware data"))
          msg1.setAlignment(Qt.AlignCenter);
          self.addWidget(msg1)
          msg2 = QLabel(str(e))
@@ -176,7 +178,7 @@ class EspInstaller(QVBoxLayout):
       portbox = QHBoxLayout()
       portbox.setContentsMargins(0,0,0,0)
       port_w.setLayout(portbox)
-      portbox.addWidget(QLabel("Port:"))
+      portbox.addWidget(QLabel(self.tr("Port:")))
       self.port_cbox = QComboBox()
       self.port_cbox.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon);
       for p in ports: self.port_cbox.addItem(str(p), p)
@@ -195,7 +197,7 @@ class EspInstaller(QVBoxLayout):
       boardbox = QHBoxLayout()
       boardbox.setContentsMargins(0,0,0,0)
       board_w.setLayout(boardbox)
-      boardbox.addWidget(QLabel("Type:"))
+      boardbox.addWidget(QLabel(self.tr("Type:")))
 
       # find all sysnames in this
       sysnames = [ ]
@@ -204,9 +206,10 @@ class EspInstaller(QVBoxLayout):
             sysnames.append(f["sysname"])
 
       if sysname is not None and sysname.upper() not in sysnames:
-         QMessageBox().information(self.rootElement(),'Unsupported system',
-              "Your board \""+sysname+"\" doesn't seem to be supported by "+
-              "the ESP flasher. Proceed with care!", QMessageBox().Ok)
+         QMessageBox().information(self.rootElement(),
+                                   self.tr('Unsupported system'),
+              self.tr("Your board \"{}\" doesn't seem to be supported by "
+              "the ESP flasher. Proceed with care!").format(sysname), QMessageBox().Ok)
             
       self.type_cbox = QComboBox()
       for s in sysnames: self.type_cbox.addItem(s)
@@ -222,7 +225,7 @@ class EspInstaller(QVBoxLayout):
          if f["sysname"].upper() == self.type_cbox.currentText().upper():
             self.board_cbox.addItem(f["board"], f)
       boardbox.addWidget(self.board_cbox, 1)
-      self.erase_flash = QCheckBox("Erase all data")
+      self.erase_flash = QCheckBox(self.tr("Erase all data"))
       boardbox.addWidget(self.erase_flash, 0)
 
       self.addWidget(board_w)
@@ -235,7 +238,7 @@ class EspInstaller(QVBoxLayout):
       self.progressBar = QProgressBar()
       self.progressBar.setEnabled(False)
       progressbox.addWidget(self.progressBar)   
-      self.details_but = QPushButton("Show details...")
+      self.details_but = QPushButton(self.tr("Show details..."))
       self.details_but.pressed.connect(self.onShowHideDetails)
       progressbox.addWidget(self.details_but)      
       self.addWidget(progress_w)
@@ -244,10 +247,10 @@ class EspInstaller(QVBoxLayout):
       self.text = QTextEdit()
       self.text.setHidden(True)
       self.text.setReadOnly(True);
-      self.text.setText("ESP MicroPython installation tool\n"+
-                        "Please select the appropriate COM port\n"+
-                        "and the ESP board type you are using.\n"+
-                        "Finally click the 'Install...' button.")
+      self.text.setText(self.tr("ESP MicroPython installation tool\n"
+                                "Please select the appropriate COM port\n"
+                                "and the ESP board type you are using.\n"
+                                "Finally click the 'Ok' button."))
       self.addWidget(self.text,1)
 
       # don't stretch at all if text is visible
@@ -362,22 +365,24 @@ class EspInstaller(QVBoxLayout):
       return port
 
    def on_install_ok(self):
-      QMessageBox().information(self.rootElement(),'Installation done',
-         "The MicroPython installation finished successfully", QMessageBox().Ok)
+      QMessageBox().information(self.rootElement(),
+                                self.tr('Installation done'),
+         self.tr("The MicroPython installation finished successfully"),
+                                QMessageBox().Ok)
       self.rootElement().close()
             
    def on_esptool_done(self, state):
       self.stop_redirect()
       if state:
          self.status_label.setStyleSheet("color: green;");
-         self.status_label.setText("Firmware installed successfully");
+         self.status_label.setText(self.tr("Firmware installed successfully"));
       else:
          self.status_label.setStyleSheet("color: red;");
-         self.status_label.setText("Firmware installation failed");
+         self.status_label.setText(self.tr("Firmware installation failed"));
          self.enable_gui(True)
 
       if state:
-         self.text_out("Waiting for firmware to boot ...\n")
+         self.text_out(self.tr("Waiting for firmware to boot ...\n"))
          self.timer = QTimer()
          self.timer.setSingleShot(True)
          self.timer.timeout.connect(self.on_install_ok)
@@ -397,7 +402,7 @@ class EspInstaller(QVBoxLayout):
       self.progress(0)
 
       self.status_label.setStyleSheet(None);
-      self.status_label.setText("Flashing firmware");
+      self.status_label.setText(self.tr("Flashing firmware"));
 
       config = { }
       # get flash parameters from gui
@@ -438,10 +443,10 @@ class EspInstaller(QVBoxLayout):
          
       if self.text.isHidden():
          self.text.setHidden(False)         
-         self.details_but.setText("Hide details...")
+         self.details_but.setText(self.tr("Hide details..."))
       else:
          self.text.setHidden(True)
-         self.details_but.setText("Show details...")
+         self.details_but.setText(self.tr("Show details..."))
          
       self.shrinktimer = QTimer()
       self.shrinktimer.setSingleShot(True)
@@ -450,7 +455,6 @@ class EspInstaller(QVBoxLayout):
          
    def esp_flash_dialog(cb, sysname=None, port=None, parent=None):
       dialog = QDialog(parent)
-      dialog.setWindowTitle("ESP MicroPython Installer")
       dialog.resize(400,140)
       installer = EspInstaller(dialog, cb, sysname, port)
       dialog.setLayout(installer)

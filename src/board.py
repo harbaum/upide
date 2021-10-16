@@ -109,15 +109,31 @@ class BoardThread(QThread):
          
          print("Report:", str(errmsg))
          self.board.queue.put( (Board.ERROR, name, str(errmsg)) )
-
+          
+         # actually the serial port may have been lost completely
+         # due to the board being unplugged or a board with built-in
+         # USB being reset. Test for lost board.
+         if self.board.serial:
+            try:
+               self.board.serial.inWaiting()
+            except:
+               # port seems to be lost
+               self.board.queue.put( (Board.LOST, ) )
+            
       self.board.cmd_code = None
       
 class Serial(serial.Serial):
    def __init__(self, device):
       super().__init__(device, 115200, interCharTimeout=1, write_timeout=5)
       self._buffer = b""
+      self._interrupt = False
 
+   def interrupt(self):
+      self._interrupt = True
+      
    def readUntil(self, timeout, seq=None, callback=None):
+      self._interrupt = False
+      
       # there may already be data in the buffer which should go with
       # the callback
       if callback:
@@ -129,7 +145,7 @@ class Serial(serial.Serial):
       
       # read until a given sequence is found or if a timeout is reached
       start = time.time()
-      while (timeout == 0 or time.time() - start < timeout ) and (seq is None or not seq in self._buffer):
+      while not self._interrupt and (timeout == 0 or time.time() - start < timeout ) and (seq is None or not seq in self._buffer):
          time.sleep(0.01)
          data = self.poll()
          
@@ -144,6 +160,10 @@ class Serial(serial.Serial):
             else:
                callback(data)
 
+      # check if serial was forcefully interrupted by user
+      if self._interrupt:
+         raise RuntimeError("Stop failed")
+               
       # remove everything up to detected pattern from buffer
       if seq is not None and seq in self._buffer:
          data = self._buffer[:self._buffer.find(seq)]
@@ -197,6 +217,7 @@ class Board(QObject):
    progress = pyqtSignal(int)
    error = pyqtSignal(str, str)
    status = pyqtSignal(str)
+   lost = pyqtSignal()
 
    # commands
    SCAN = 1
@@ -215,6 +236,7 @@ class Board(QObject):
    PROGRESS = 4
    CONSOLE = 5
    ERROR = 6
+   LOST = 7
             
    def __init__(self, parent=None):
       super().__init__(parent)
@@ -239,12 +261,12 @@ class Board(QObject):
          if self.thread.isFinished():
             self.thread = None
             self.done()
-      
+
       # read messages from thread out of queue and convert them
       # into qt signals
       while not self.queue.empty():
          msg = self.queue.get()
-
+         
          if msg[0] == Board.CONSOLE:
             self.console.emit(msg[1])
          elif msg[0] == Board.CODE_DOWNLOADED:
@@ -255,6 +277,8 @@ class Board(QObject):
             self.error.emit(msg[1], msg[2])
          elif msg[0] == Board.STATUS:
             self.status.emit(msg[1])
+         elif msg[0] == Board.LOST:
+            self.lost.emit()
          elif msg[0] == Board.RESULT:
             # board command result is handled by command specific
             # callback handlers
@@ -306,6 +330,9 @@ class Board(QObject):
 
       return None
 
+   def forceStop(self):
+      self.serial.interrupt();
+   
    def listDir(self):
       # a file entry in unformatted flash looks like
       # \xff\xff\xff\xff\xff\xff\xff\xff.\xff\xff\xff

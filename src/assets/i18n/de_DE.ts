@@ -4,32 +4,32 @@
 <context>
     <name>Board</name>
     <message>
-        <location filename="../../board.py" line="542"/>
+        <location filename="../../board.py" line="568"/>
         <source>No board found!</source>
         <translation>Kein Board gefunden!</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="541"/>
+        <location filename="../../board.py" line="567"/>
         <source>no board</source>
         <translation>kein Board</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="419"/>
+        <location filename="../../board.py" line="445"/>
         <source>&lt;unknown&gt;</source>
         <translation>&lt;unbekannt&gt;</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="432"/>
+        <location filename="../../board.py" line="458"/>
         <source>Error: Board not responding to command!</source>
         <translation>Fehler: Board antwortet nicht auf Befehl!</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="537"/>
+        <location filename="../../board.py" line="563"/>
         <source>Checking port {}</source>
         <translation>Untersuche Port {}</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="576"/>
+        <location filename="../../board.py" line="602"/>
         <source>Failed to enter repl</source>
         <translation>Konnte REPL nicht starten</translation>
     </message>
@@ -78,7 +78,7 @@
     <message>
         <location filename="../../editors.py" line="162"/>
         <source>A beginners Micropython IDE</source>
-        <translation>Eine Micropython-IDE für Anfänger</translation>
+        <translation>Eine Micropython-IDE für Beginner</translation>
     </message>
     <message>
         <location filename="../../editors.py" line="168"/>
@@ -92,9 +92,100 @@
     </message>
 </context>
 <context>
+    <name>EspInstaller</name>
+    <message>
+        <location filename="../../esp_installer.py" line="209"/>
+        <source>Unsupported system</source>
+        <translation>Nicht unterstützes System</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="209"/>
+        <source>Your board &quot;{}&quot; doesn&apos;t seem to be supported by the ESP flasher. Proceed with care!</source>
+        <translation>Das Bord &quot;{}&quot; scheint nicht von der ESP32-Installation unterstützt zu werden. Vorsicht beim Fortfahren!</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="228"/>
+        <source>Erase all data</source>
+        <translation>Alle Daten löschen</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="449"/>
+        <source>Show details...</source>
+        <translation>Details anzeigen...</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="368"/>
+        <source>Installation done</source>
+        <translation>Installation beendet</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="368"/>
+        <source>The MicroPython installation finished successfully</source>
+        <translation>Die Micropython-Installation wurde erfolgreich beendet</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="381"/>
+        <source>Firmware installation failed</source>
+        <translation>Firmware-Installation fehlgeschlagen</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="385"/>
+        <source>Waiting for firmware to boot ...
+</source>
+        <translation>Warte auf Firmware-Start ...
+</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="405"/>
+        <source>Flashing firmware</source>
+        <translation>Flashe Firmware</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="446"/>
+        <source>Hide details...</source>
+        <translation>Details verbergen...</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="167"/>
+        <source>Error loading ESP firmware data</source>
+        <translation>Fehler beim Laden der ESP32-Firmware-Daten</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="181"/>
+        <source>Port:</source>
+        <translation>Anschluss:</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="200"/>
+        <source>Type:</source>
+        <translation>Typ:</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="159"/>
+        <source>ESP MicroPython Installer</source>
+        <translation>ESP-Micropython-Installation</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="250"/>
+        <source>ESP MicroPython installation tool
+Please select the appropriate COM port
+and the ESP board type you are using.
+Finally click the &apos;Ok&apos; button.</source>
+        <translation>ESP32-Micropython-Installationswerkzeug
+Bitte den richtigen COM-Port und
+den ESP-Bord-Typ auswählen.
+Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="378"/>
+        <source>Firmware installed successfully</source>
+        <translation>Firmware erfolgreich installiert</translation>
+    </message>
+</context>
+<context>
     <name>FileView</name>
     <message>
-        <location filename="../../fileview.py" line="842"/>
+        <location filename="../../fileview.py" line="844"/>
         <source>A file or directory with that name already exists</source>
         <translation>Eine Datei mit dem Namen existiert bereits</translation>
     </message>
@@ -114,12 +205,12 @@
         <translation>Der Dateiname darf nicht leer sein!</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="829"/>
+        <location filename="../../fileview.py" line="831"/>
         <source>A file with that name already exists</source>
         <translation>Eine Datei mit dem Namen existier bereits</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="833"/>
+        <location filename="../../fileview.py" line="835"/>
         <source>Unable to import non-python file.</source>
         <translation>Es können nur Python-Dateien importiert werden.</translation>
     </message>
@@ -212,37 +303,37 @@
         <translation>Speichern mit Fehler abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="122"/>
+        <location filename="../../upide.py" line="129"/>
         <source>Code execution successful</source>
         <translation>Codeausführung erfolgreich</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="123"/>
+        <location filename="../../upide.py" line="130"/>
         <source>Code execution aborted with error</source>
         <translation>Codeausführung mit Fehler abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="129"/>
+        <location filename="../../upide.py" line="136"/>
         <source>Running code ...</source>
         <translation>Führe Code aus ...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="287"/>
+        <location filename="../../upide.py" line="310"/>
         <source>{0} connected, MicroPython V{1} on {2}</source>
         <translation>{0} verbunden,  MicroPython V{1} auf {2}</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="336"/>
+        <location filename="../../upide.py" line="359"/>
         <source>Search done</source>
         <translation>Suche beendet</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="451"/>
+        <location filename="../../upide.py" line="474"/>
         <source>Connecting port {}...</source>
         <translation>Verbinde port {}...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="475"/>
+        <location filename="../../upide.py" line="517"/>
         <source>Starting ...</source>
         <translation>Starte ...</translation>
     </message>
@@ -252,7 +343,7 @@
         <translation>Wirklich beenden?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="193"/>
+        <location filename="../../upide.py" line="216"/>
         <source>Import failed</source>
         <translation>Importieren fehlgeschlagen</translation>
     </message>
@@ -262,34 +353,51 @@
         <translation>Der Arbeitsplatz enthält ungespeicherte Änderungen.</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="319"/>
+        <location filename="../../upide.py" line="342"/>
         <source>Flash...</source>
         <translation>Flashen...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="314"/>
+        <location filename="../../upide.py" line="337"/>
         <source>No board found</source>
         <translation>Kein Bord gefunden</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="314"/>
+        <location filename="../../upide.py" line="337"/>
         <source>No MicroPython board was detected!</source>
         <translation>Kein Micropython-Bord wurde erkannt!</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="314"/>
+        <location filename="../../upide.py" line="337"/>
         <source>Do you want to flash the MicroPython firmware or retry searching for a MicroPython board?</source>
         <translation>Möchten Sie die Micropython-Firmware flashen oder die Suche wiederholen?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="380"/>
+        <location filename="../../upide.py" line="403"/>
         <source>Stopped by user</source>
         <translation>Durch Benutzer abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="203"/>
+        <location filename="../../upide.py" line="226"/>
         <source>Error</source>
         <translation>Fehler</translation>
+    </message>
+    <message>
+        <location filename="../../upide.py" line="490"/>
+        <source>Connection to board lost</source>
+        <translation>Verbindung zum Bord verloren</translation>
+    </message>
+    <message>
+        <location filename="../../upide.py" line="493"/>
+        <source>Board lost</source>
+        <translation>Bord verloren</translation>
+    </message>
+    <message>
+        <location filename="../../upide.py" line="493"/>
+        <source>The connection to the board has been lost!
+Do you want to reconnect?</source>
+        <translation>Die Verbindung zum Bord wurde verloren!
+Soll versucht werden, die Verbindung wieder herzustellen?</translation>
     </message>
 </context>
 </TS>

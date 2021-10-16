@@ -115,6 +115,13 @@ class Window(QMainWindow):
       self.console.enable_input(True)
 
    def on_run_done(self, success):
+      # "run done" means the running program has been stopped
+      # so a "stop" timeout may be pending. Cancel that as stop
+      # was successful
+      if hasattr(self, "stop_timer") and self.stop_timer:
+         self.stop_timer.stop()
+         self.stop_timer = None
+      
       self.on_board_request(False)
       self.console.enable(True)
       self.console.enable_input(False)
@@ -131,9 +138,25 @@ class Window(QMainWindow):
       self.on_board_request(True)
       self.console.enable(False)
       self.board.cmd(Board.RUN, self.on_run_done, { "name": name, "code": code } )
+
+   def on_stop_timeout(self):
+      # the stop command has run into a timeout. Force the board communication
+      # thread to stop.
+      self.board.forceStop();
+      self.stop_timer = None
       
    def on_stop(self):
       # User has requested to stop the currently running code
+      self.editors.set_run_mode(None)
+   
+      # if may actually not be possible to stop the program as it may
+      # have quietly stopped e.g. due to a board reset. So start a one second
+      # timeout to cope with this
+      self.stop_timer = QTimer()
+      self.stop_timer.setSingleShot(True)
+      self.stop_timer.timeout.connect(self.on_stop_timeout)
+      self.stop_timer.start(1000)
+      
       self.board.stop()
       
       # file has been loaded on user request
@@ -459,6 +482,25 @@ class Window(QMainWindow):
       self.port = None
       self.port_dialog.close()
 
+   def port_lost(self):
+      # disable all board interaction
+      self.editors.closeAll()
+      self.fileview.set(None)
+      self.console.enable(False)
+      self.status(self.tr("Connection to board lost"));
+      
+      qm = QMessageBox()
+      ret = qm.question(self, self.tr('Board lost'),
+                        self.tr("The connection to the board has been lost!\n"
+                                "Do you want to reconnect?"), qm.Yes | qm.No)
+      if ret == qm.Yes:
+         # user wants to reconnect
+         self.progress(None)
+         self.board.cmd(Board.SCAN, self.on_scan_result)
+      else:
+         # user doesn't want to reconnect. So there's not much we can do
+         self.close()
+      
    def initUI(self):
       self.setWindowTitle("µPIDE - Micropython IDE")
 
@@ -481,6 +523,7 @@ class Window(QMainWindow):
       self.board.progress.connect(self.progress)
       self.board.error.connect(self.on_error)
       self.board.status.connect(self.status)
+      self.board.lost.connect(self.port_lost)
 
       # start scanning for board
       self.progress(False)

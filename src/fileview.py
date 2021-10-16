@@ -324,7 +324,7 @@ class FileView(QTreeView):
       self.examples.loaded.connect(self.on_examples_loaded)
       self.examples.imported.connect(self.on_example_imported)
       self.examples.scan()
-      
+
    def on_context_example(self, action):
       # check if a file of that name exists
       fullname = self.context_entry[0] + "/" + action.property("filename").split("/")[-1]
@@ -696,11 +696,13 @@ class FileView(QTreeView):
       
    def set(self, files):
       # invisible root item
-      root = FileNode("")      
-      rootdir = FileNode(self.rootname)
-      root.addChild(rootdir)
-      for i in self.getItems(files, ""):
-         rootdir.addChild(i)
+      root = FileNode("")
+
+      if files:
+         rootdir = FileNode(self.rootname)
+         root.addChild(rootdir)
+         for i in self.getItems(files, ""):
+            rootdir.addChild(i)
       
       model = FileModel(root)
       self.setModel(model)
