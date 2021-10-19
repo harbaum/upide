@@ -37,7 +37,7 @@
 <context>
     <name>BoardThread</name>
     <message>
-        <location filename="../../board.py" line="98"/>
+        <location filename="../../board.py" line="100"/>
         <source>Unexpected command</source>
         <translation>Unbekanntes Kommando</translation>
     </message>
@@ -76,17 +76,17 @@
 <context>
     <name>Editors</name>
     <message>
-        <location filename="../../editors.py" line="162"/>
+        <location filename="../../editors.py" line="164"/>
         <source>A beginners Micropython IDE</source>
         <translation>Eine Micropython-IDE für Beginner</translation>
     </message>
     <message>
-        <location filename="../../editors.py" line="168"/>
+        <location filename="../../editors.py" line="170"/>
         <source>(c) 2021 Till Harbaum &lt;till@harbaum.org&gt;</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../../editors.py" line="172"/>
+        <location filename="../../editors.py" line="174"/>
         <source>{} on Github</source>
         <translation>{} auf Github</translation>
     </message>
@@ -185,42 +185,42 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
 <context>
     <name>FileView</name>
     <message>
-        <location filename="../../fileview.py" line="844"/>
+        <location filename="../../fileview.py" line="849"/>
         <source>A file or directory with that name already exists</source>
         <translation>Eine Datei mit dem Namen existiert bereits</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="438"/>
+        <location filename="../../fileview.py" line="443"/>
         <source>The directory name must not be empty and must not contain the characters \,/,:,*,&quot;,&lt;,&gt; or |</source>
         <translation>Der Verzeichnisname darf nicht leer sein und darf die Zeichen \,/,:,*,&quot;,&lt;,&gt; oder | nicht entalten</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="460"/>
+        <location filename="../../fileview.py" line="465"/>
         <source>The file name must not be empty and must not contain the characters \,/,:,*,&quot;,&lt;,&gt; or |</source>
         <translation>Der Dateiname darf nicht leer sein und darf die Zeichen \,/,:,*,&quot;,&lt;,&gt; oder | nicht entalten</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="502"/>
+        <location filename="../../fileview.py" line="507"/>
         <source>The file name must not be empty!</source>
         <translation>Der Dateiname darf nicht leer sein!</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="831"/>
+        <location filename="../../fileview.py" line="836"/>
         <source>A file with that name already exists</source>
         <translation>Eine Datei mit dem Namen existier bereits</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="835"/>
+        <location filename="../../fileview.py" line="840"/>
         <source>Unable to import non-python file.</source>
         <translation>Es können nur Python-Dateien importiert werden.</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="595"/>
+        <location filename="../../fileview.py" line="600"/>
         <source>Really delete?</source>
         <translation>Wirklich löschen?</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="595"/>
+        <location filename="../../fileview.py" line="600"/>
         <source>Do you really want to delete {} from the board?</source>
         <translation>Soll die Datei {} wirklich vom Gerät entfernt werden?</translation>
     </message>
@@ -265,27 +265,27 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
         <translation>Löschen...</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="367"/>
+        <location filename="../../fileview.py" line="372"/>
         <source>Examples</source>
         <translation>Beispiele</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="433"/>
+        <location filename="../../fileview.py" line="438"/>
         <source>New directory</source>
         <translation>Neues Verzeichnis</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="433"/>
+        <location filename="../../fileview.py" line="438"/>
         <source>Enter new directory name:</source>
         <translation>Neuen Verzeichnisnamen eingeben:</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="456"/>
+        <location filename="../../fileview.py" line="461"/>
         <source>New file</source>
         <translation>Neue Datei</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="456"/>
+        <location filename="../../fileview.py" line="461"/>
         <source>Enter new file name:</source>
         <translation>Neuen Dateinamen eingeben:</translation>
     </message>
@@ -298,42 +298,42 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
         <translation>{} gespeichert</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="100"/>
+        <location filename="../../upide.py" line="98"/>
         <source>Saving aborted with error</source>
         <translation>Speichern mit Fehler abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="129"/>
+        <location filename="../../upide.py" line="127"/>
         <source>Code execution successful</source>
         <translation>Codeausführung erfolgreich</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="130"/>
+        <location filename="../../upide.py" line="128"/>
         <source>Code execution aborted with error</source>
         <translation>Codeausführung mit Fehler abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="136"/>
+        <location filename="../../upide.py" line="134"/>
         <source>Running code ...</source>
         <translation>Führe Code aus ...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="310"/>
+        <location filename="../../upide.py" line="311"/>
         <source>{0} connected, MicroPython V{1} on {2}</source>
         <translation>{0} verbunden,  MicroPython V{1} auf {2}</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="359"/>
+        <location filename="../../upide.py" line="360"/>
         <source>Search done</source>
         <translation>Suche beendet</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="474"/>
+        <location filename="../../upide.py" line="495"/>
         <source>Connecting port {}...</source>
         <translation>Verbinde port {}...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="517"/>
+        <location filename="../../upide.py" line="538"/>
         <source>Starting ...</source>
         <translation>Starte ...</translation>
     </message>
@@ -343,7 +343,7 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
         <translation>Wirklich beenden?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="216"/>
+        <location filename="../../upide.py" line="215"/>
         <source>Import failed</source>
         <translation>Importieren fehlgeschlagen</translation>
     </message>
@@ -353,51 +353,61 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
         <translation>Der Arbeitsplatz enthält ungespeicherte Änderungen.</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="342"/>
+        <location filename="../../upide.py" line="343"/>
         <source>Flash...</source>
         <translation>Flashen...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="337"/>
+        <location filename="../../upide.py" line="338"/>
         <source>No board found</source>
         <translation>Kein Bord gefunden</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="337"/>
+        <location filename="../../upide.py" line="338"/>
         <source>No MicroPython board was detected!</source>
         <translation>Kein Micropython-Bord wurde erkannt!</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="337"/>
+        <location filename="../../upide.py" line="338"/>
         <source>Do you want to flash the MicroPython firmware or retry searching for a MicroPython board?</source>
         <translation>Möchten Sie die Micropython-Firmware flashen oder die Suche wiederholen?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="403"/>
+        <location filename="../../upide.py" line="404"/>
         <source>Stopped by user</source>
         <translation>Durch Benutzer abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="226"/>
+        <location filename="../../upide.py" line="225"/>
         <source>Error</source>
         <translation>Fehler</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="490"/>
+        <location filename="../../upide.py" line="511"/>
         <source>Connection to board lost</source>
         <translation>Verbindung zum Bord verloren</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="493"/>
+        <location filename="../../upide.py" line="514"/>
         <source>Board lost</source>
         <translation>Bord verloren</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="493"/>
+        <location filename="../../upide.py" line="514"/>
         <source>The connection to the board has been lost!
 Do you want to reconnect?</source>
         <translation>Die Verbindung zum Bord wurde verloren!
 Soll versucht werden, die Verbindung wieder herzustellen?</translation>
+    </message>
+    <message>
+        <location filename="../../upide.py" line="296"/>
+        <source>Interactive mode active</source>
+        <translation>Interaktiver Modus aktiv</translation>
+    </message>
+    <message>
+        <location filename="../../upide.py" line="299"/>
+        <source>Interactive mode done</source>
+        <translation>Interaktiver Modus beendet</translation>
     </message>
 </context>
 </TS>
