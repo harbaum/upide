@@ -247,7 +247,7 @@ class CodeEditor(QPlainTextEdit):
         self.btn_save.setToolTip(self.tr("Save this code") + " (CTRL-S)");
         self.btn_save.setHidden(True)
         
-        self.set_button_mode(True)
+        self.set_button(True)
 
         # some extra keyboard shortcuts
         QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self.on_save)
@@ -297,7 +297,7 @@ class CodeEditor(QPlainTextEdit):
             code = code.replace('\r', '')        
             self.setPlainText(code)
         
-    def set_button_mode(self, mode):
+    def set_button(self, mode):
         # True = run, False = stop, None = disabled
         self.button_mode = mode
         if mode == True:

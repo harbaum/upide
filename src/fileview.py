@@ -325,6 +325,11 @@ class FileView(QTreeView):
       self.examples.imported.connect(self.on_example_imported)
       self.examples.scan()
 
+   def get_file_size(self, name):
+      node = self.findNode(name)
+      if node is None: return None
+      return node.size
+      
    def on_context_example(self, action):
       # check if a file of that name exists
       fullname = self.context_entry[0] + "/" + action.property("filename").split("/")[-1]

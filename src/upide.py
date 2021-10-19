@@ -66,7 +66,7 @@ class Window(QMainWindow):
       
       # disable all run buttons during busy. Enable all of them
       # afterwards. One may become a stop button in the meantime.
-      self.editors.set_run_mode(not busy)  # disable all run buttons
+      self.editors.set_button(None if busy else True)  # hide run buttons
 
       # show progress bar while busy. This initially shows an
       # "unspecified" busy bar. Once an action starts returning
@@ -83,8 +83,6 @@ class Window(QMainWindow):
          self.status(self.tr("Saved {}").format(self.code["name"]))
 
          if self.code["new_file"]:
-            print("handle new file");
-
             # add file to file view
             self.fileview.add(self.code["name"], len(self.code["code"]))
                 
@@ -109,8 +107,8 @@ class Window(QMainWindow):
       
    def on_code_downloaded(self):
       # code to be run has been downloaded to the board:
-      # Thus make run button a stop button
-      self.editors.set_run_mode(False, self.code["name"])
+      # Thus make all run buttons into stop buttons
+      self.editors.set_button(False)
       # and allow the console to react on key presses
       self.console.enable_input(True)
 
@@ -134,7 +132,6 @@ class Window(QMainWindow):
       self.code = { "name": name, "code": code }
       
       self.status(self.tr("Running code ..."));
-      self.board.code_downloaded.connect(self.on_code_downloaded)
       self.on_board_request(True)
       self.console.enable(False)
       self.board.cmd(Board.RUN, self.on_run_done, { "name": name, "code": code } )
@@ -147,7 +144,7 @@ class Window(QMainWindow):
       
    def on_stop(self):
       # User has requested to stop the currently running code
-      self.editors.set_run_mode(None)
+      self.editors.set_button(None)
    
       # if may actually not be possible to stop the program as it may
       # have quietly stopped e.g. due to a board reset. So start a one second
@@ -165,6 +162,8 @@ class Window(QMainWindow):
       self.console.enable(True)
       if success:
          self.editors.new(result["name"], result["code"])
+         if "error" in result:
+            self.editors.highlight(result["name"], result["error"]["line"], result["error"]["msg"])
 
       # user has triggered a file load
    def on_open(self, name, size):
@@ -294,8 +293,10 @@ class Window(QMainWindow):
          # clicking the console prompt icon starts repl interaction
          self.on_board_request(True)
          self.board.cmd(Board.REPL, self.on_repl)
+         self.status(self.tr("Interactive mode active"))
       else:
          self.board.stop()
+         self.status(self.tr("Interactive mode done"))
    
    def status(self, str):
       self.statusBar().showMessage(str);      
@@ -401,10 +402,30 @@ class Window(QMainWindow):
          # the user has probably pressed the stop button. So replace
          # the message
          lines[i] = lines[i].replace("KeyboardInterrupt:", self.tr("Stopped by user"))
-         
-         self.editors.highlight(name, errline, "\n".join(lines[i:]))
-                                
-         locstr = name.split("/")[-1] + ", " + ",".join(loc[1:]).strip()+"\n"
+
+         # file name is <stdin> for the running script itself. Otherwise it's
+         # a real filename
+         filename = None
+         if len(loc[0].strip().split(" ")) > 1:
+            filename = loc[0].strip().split(" ")[1].strip("\"")
+            # editor expects full path names
+            if not filename.startswith("/"):
+               filename = "/" + filename
+            
+         if filename == "<stdin>": filename = name
+
+         # try to highlight. If that fails since e.g. the file is not loaded
+         # in editor yet, then try to laod it
+         if not self.editors.highlight(filename, errline, "\n".join(lines[i:])):
+            size = self.fileview.get_file_size(filename)
+            if size is not None and size > 0:
+               self.on_board_request(True)
+               self.console.enable(False)
+               self.board.cmd(Board.GET_FILE, self.on_file, {
+                  "name": filename, "size": size,
+                  "error": { "line": errline, "msg": "\n".join(lines[i:]) } } )
+                 
+         locstr = filename.split("/")[-1] + ", " + ",".join(loc[1:]).strip()+"\n"
          self.console.append(locstr, color="darkred")
          self.console.append("\n".join(lines[i:]), color="darkred")
       except:
@@ -524,6 +545,7 @@ class Window(QMainWindow):
       self.board.error.connect(self.on_error)
       self.board.status.connect(self.status)
       self.board.lost.connect(self.port_lost)
+      self.board.code_downloaded.connect(self.on_code_downloaded)
 
       # start scanning for board
       self.progress(False)

@@ -455,7 +455,7 @@ class EspInstaller(QVBoxLayout):
          
    def esp_flash_dialog(cb, sysname=None, port=None, parent=None):
       dialog = QDialog(parent)
-      dialog.resize(400,140)
+      dialog.resize(500,140)
       installer = EspInstaller(dialog, cb, sysname, port)
       dialog.setLayout(installer)
       dialog.setWindowModality(Qt.ApplicationModal)

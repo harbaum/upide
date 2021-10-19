@@ -86,6 +86,8 @@ class BoardThread(QThread):
                "code": self.board.getFile(self.parms["name"], self.file_progress),
                "name": self.parms["name"]
             }
+            # forware error information for highlighting if present
+            if "error" in self.parms: result["error"] = self.parms["error"]
             self.board.queue.put( (Board.RESULT, True, result) )       
          elif self.cmd_code == Board.RUN:
             self.board.run(self.parms["code"], self.run_output)
@@ -184,9 +186,6 @@ class Serial(serial.Serial):
       # while the user wasn't communicating with the board. So the most
       # likely case for a serial error is the first byte being written
       # for a new command.
-      
-      # todo: try to re-open port and re-send data
-      
    
    def poll(self):
       try:

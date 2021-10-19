@@ -92,21 +92,23 @@ class EditorTabs(QTabWidget):
         return self.get_index_by_file(name) != None
 
     def rename(self, old, new):
+        # check if it's a directory that is being renamed which
+        # in turn may affect the paths of files in open editor tabs
+        for tab in range(self.count()):
+            # check if the old name is a path prefix of this tab
+            if self.widget(tab).name.startswith(old+"/"):
+                newname = new + self.widget(tab).name[len(old):]
+                self.widget(tab).rename(newname)
+
+        # check if it's a file name of an open tab that has been renamed
         tab = self.get_index_by_file(old)
         if tab is not None:
             self.setTabText(tab, new.split("/")[-1]);
             self.widget(tab).rename(new)
     
-    def set_run_mode(self, state, name=None):
+    def set_button(self, state):
         for i in range(self.count()):
-            if state: 
-                # enable all buttons
-                self.widget(i).set_button_mode(True)
-            elif name != None:
-                # make all buttons stop buttons
-                self.widget(i).set_button_mode(False)
-            else:
-                self.widget(i).set_button_mode(None)
+            self.widget(i).set_button(state)
 
     def isModified(self):
         # return true if any of the editor tabs
@@ -128,7 +130,7 @@ class Editors(QStackedWidget):
     stop = pyqtSignal()
     closed = pyqtSignal(str)
     changed = pyqtSignal(str)
-    
+
     def __init__(self):
         super().__init__()
         self.addWidget(self.splash(self))
@@ -155,7 +157,7 @@ class Editors(QStackedWidget):
         title.setAlignment(Qt.AlignCenter)
         vbox.addWidget(title)
 
-        version = QLabel("V1.0", vbox_w)
+        version = QLabel("V1.0.1", vbox_w)
         version.setAlignment(Qt.AlignCenter)
         vbox.addWidget(version)
         
@@ -209,7 +211,11 @@ class Editors(QStackedWidget):
     def highlight(self, name, line, message):
         tab = self.tabs.get_index_by_file(name)
         if tab is not None:
-            self.tabs.widget(tab).highlight(line-1, message)      
+            self.tabs.widget(tab).highlight(line-1, message)
+            self.tabs.setCurrentIndex(tab)
+            return True
+
+        return False
 
     def new(self, name, code = None):
         # if the tabs aren't in front, then bring them to front now
@@ -218,8 +224,10 @@ class Editors(QStackedWidget):
         # and request editor tab
         self.tabs.new(name, code)
         
-    def set_run_mode(self, state, name=None):
-        self.tabs.set_run_mode(state, name)
+    def set_button(self, state):
+        # set editor button(s) to
+        # True=RUN, False=Stop or None
+        self.tabs.set_button(state)
 
     def saved(self, name):
         tab = self.tabs.get_index_by_file(name)
