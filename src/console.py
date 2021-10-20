@@ -41,10 +41,10 @@ class Console(QPlainTextEdit):
         self.esc_buffer = ""
 
         # overlay prompt button
-        self.btn_prompt = QPushButton(QIcon(self.resource_path("assets/console_prompt.svg")), "", self)
+        self.btn_prompt = QPushButton(self)
         self.btn_prompt.setIconSize(QSize(32,32));
         self.btn_prompt.setFlat(True)
-        self.btn_prompt.setToolTip(self.tr("Enter interactive mode"));
+        self.set_button(None)
         self.btn_prompt.resize(32, 32)
         self.btn_prompt.setStyleSheet("background-color: rgba(255, 255, 255, 0);");
         self.btn_prompt.pressed.connect(self.on_prompt)
@@ -56,21 +56,25 @@ class Console(QPlainTextEdit):
         # relocate the run and save icons
         self.btn_prompt.move(QPoint(self.width()-56, self.height()-56))
 
-    def enable(self, en):
-         self.btn_prompt.setVisible(en)
-        
-    def on_prompt(self):
-        self.clear()
-        self.enable_input(not self.interactive)
-        if not self.interactive:
+    def set_button(self, mode):
+        self.btn_prompt.setVisible(mode != None)
+        if mode == False:
             self.interactive = True
             self.btn_prompt.setToolTip(self.tr("Leave interactive mode"));
             self.btn_prompt.setIcon(QIcon(self.resource_path("assets/console_stop.svg")))
-            self.interact.emit(True)
-        else:
+        elif mode == True:
             self.interactive = False
             self.btn_prompt.setToolTip(self.tr("Enter interactive mode"));
             self.btn_prompt.setIcon(QIcon(self.resource_path("assets/console_prompt.svg")))
+        
+    def on_prompt(self):
+        self.clear()
+        self.enable_input(not self.interactive)        
+        if not self.interactive:
+            self.set_button(False)
+            self.interact.emit(True)
+        else:
+            self.interactive = False
             self.interact.emit(False)            
         
     def resource_path(self, relative_path):

@@ -93,7 +93,7 @@ class BoardThread(QThread):
             self.board.run(self.parms["code"], self.run_output)
             self.board.queue.put( (Board.RESULT, True ) )       
          elif self.cmd_code == Board.REPL:
-            self.board.interactive()
+            self.board.go_interactive()
             self.board.queue.put( (Board.RESULT, True ) )       
          else:
             print("Unexpected command", self.cmd_code)
@@ -217,6 +217,7 @@ class Board(QObject):
    error = pyqtSignal(str, str)
    status = pyqtSignal(str)
    lost = pyqtSignal()
+   interactive = pyqtSignal()
 
    # commands
    SCAN = 1
@@ -585,7 +586,10 @@ class Board(QObject):
    def on_interactive_output(self, msg):
       self.queue.put( (Board.CONSOLE, msg ) )
 
-   def interactive(self):
+   def go_interactive(self):
+      # try to interrupt the board
+      self.sendCtrl('c')
+      
       # flush any input buffer
       self.serial.readUntil(.1)
       self.serial._buffer = b''
@@ -594,6 +598,7 @@ class Board(QObject):
       self.sendCtrl('b')
       data = self.serial.readUntil(1, b"for more information.\r\n>>> ")
       if data[0] == True:
+         self.interactive.emit()
          self.on_interactive_output(data[1]+b"for more information.\r\n>>> " )
          while self.interact:
             self.serial.readUntil(.1, None, self.on_interactive_output)

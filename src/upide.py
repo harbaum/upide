@@ -78,7 +78,7 @@ class Window(QMainWindow):
    
    def on_save_done(self, success = None):
       self.on_board_request(False)
-      self.console.enable(True)
+      self.console.set_button(True)
       if success:
          self.status(self.tr("Saved {}").format(self.code["name"]))
 
@@ -102,7 +102,7 @@ class Window(QMainWindow):
       
       # User has requested to save the code he edited
       self.on_board_request(True)
-      self.console.enable(False)
+      self.console.set_button(None)
       self.board.cmd(Board.PUT_FILE, self.on_save_done, { "name": name, "code": code } )
       
    def on_code_downloaded(self):
@@ -121,7 +121,7 @@ class Window(QMainWindow):
          self.stop_timer = None
       
       self.on_board_request(False)
-      self.console.enable(True)
+      self.console.set_button(True)
       self.console.enable_input(False)
       self.editors.focus() # give focus back to topmost editor
       if success: self.status(self.tr("Code execution successful"));
@@ -133,7 +133,7 @@ class Window(QMainWindow):
       
       self.status(self.tr("Running code ..."));
       self.on_board_request(True)
-      self.console.enable(False)
+      self.console.set_button(None)
       self.board.cmd(Board.RUN, self.on_run_done, { "name": name, "code": code } )
 
    def on_stop_timeout(self):
@@ -159,7 +159,7 @@ class Window(QMainWindow):
       # file has been loaded on user request
    def on_file(self, success, result=None):
       self.on_board_request(False)
-      self.console.enable(True)
+      self.console.set_button(True)
       if success:
          self.editors.new(result["name"], result["code"])
          if "error" in result:
@@ -177,7 +177,7 @@ class Window(QMainWindow):
          if size >= 0:
             # if size is > 0 this is an existing file, so load it
             self.on_board_request(True)
-            self.console.enable(False)
+            self.console.set_button(None)
             self.board.cmd(Board.GET_FILE, self.on_file, { "name": name, "size": size } )
          else:
             # else it's a newly created file
@@ -228,21 +228,28 @@ class Window(QMainWindow):
    def on_do_flash(self):
       # user has decided to really flash. So we close the serial connection
       self.board.close()
+
+   def start_rescan(self):
+      # close all editor tabs, clear the console and refresh the file view
+         
+      # disable most gui elements until averything has been reloaded
+      self.on_board_request(True)
+      self.console.set_button(None)      
+      self.editors.closeAll()
+      self.fileview.set(None)
+
+      # start scanning for board
+      self.progress(None)
+      self.board.cmd(Board.SCAN, self.on_scan_result)
       
    def on_firmware(self):
       if EspInstaller.esp_flash_dialog(self.on_do_flash, self.sysname, self.board.getPort(), self):
-
-         # close all editor tabs, clear the console and refresh the file view
-         
-         # disable most gui elements until averything has been reloaded
-         self.on_board_request(True)
-         self.console.enable(False)
-      
-         self.editors.closeAll()
-
-         # start scanning for board
-         self.progress(None)
-         self.board.cmd(Board.SCAN, self.on_scan_result)
+         self.start_rescan()
+      else:
+         # flashing may have failed and the user may not want to retry.
+         # This the serial port may be closed
+         if not self.board.serial:
+            self.start_rescan()
 
    def mainWidget(self):
       vsplitter = QSplitter(Qt.Vertical)      
@@ -284,26 +291,33 @@ class Window(QMainWindow):
       
       return vsplitter
 
-   def on_repl(self, status, msg=""):
+   def on_repl_done(self, status, msg=""):
+      # interactive mode has ended (or failed to enter)
       self.on_board_request(False)
-      self.console.enable(True)
-   
+      self.console.set_button(True)
+      self.status(self.tr("Interactive mode done"))
+
+   def on_interactive(self):
+      # interactive mode has successfully been enabled after
+      # user request. So show the stop button
+      self.console.set_button(False)
+      
    def on_console_interact(self, start):
+      self.console.set_button(None)
       if start:
          # clicking the console prompt icon starts repl interaction
          self.on_board_request(True)
-         self.board.cmd(Board.REPL, self.on_repl)
+         self.board.cmd(Board.REPL, self.on_repl_done)
          self.status(self.tr("Interactive mode active"))
       else:
          self.board.stop()
-         self.status(self.tr("Interactive mode done"))
    
    def status(self, str):
       self.statusBar().showMessage(str);      
 
    def on_listdir(self, success, files=None):
       self.on_board_request(False)
-      self.console.enable(True)
+      self.console.set_button(True)
       if success:
          self.fileview.set(files)      
       
@@ -312,11 +326,11 @@ class Window(QMainWindow):
       self.fileview.sysname(version[0])
       self.sysname = version[0]
       self.on_board_request(False)
-      self.console.enable(True)
+      self.console.set_button(True)
 
       # version received, request files
       self.on_board_request(True)
-      self.console.enable(False)
+      self.console.set_button(None)
       self.board.cmd(Board.LISTDIR, self.on_listdir)
 
    def on_retry_dialog_button(self, btn):
@@ -325,7 +339,7 @@ class Window(QMainWindow):
          if EspInstaller.esp_flash_dialog(self.on_do_flash, parent=self):
             # disable most gui elements until averything has been reloaded
             self.on_board_request(True)
-            self.console.enable(False)
+            self.console.set_button(None)
       
             # re-start scanning for board
             self.progress(None)
@@ -348,7 +362,7 @@ class Window(QMainWindow):
 
       if ret ==  QMessageBox.Retry:
          self.on_board_request(True)
-         self.console.enable(False)
+         self.console.set_button(None)
          self.progress(None)
          self.board.cmd(Board.SCAN, self.on_scan_result)
          return
@@ -359,11 +373,11 @@ class Window(QMainWindow):
    def on_scan_result(self, success):
       self.status(self.tr("Search done"))
       self.on_board_request(False)
-      self.console.enable(True)
+      self.console.set_button(True)
 
       if success:
          self.on_board_request(True)
-         self.console.enable(False)
+         self.console.set_button(None)
          self.board.cmd(Board.GET_VERSION, self.on_version)
       else:
          # trigger failure dialog via timer to not block the gui
@@ -420,7 +434,7 @@ class Window(QMainWindow):
             size = self.fileview.get_file_size(filename)
             if size is not None and size > 0:
                self.on_board_request(True)
-               self.console.enable(False)
+               self.console.set_button(None)
                self.board.cmd(Board.GET_FILE, self.on_file, {
                   "name": filename, "size": size,
                   "error": { "line": errline, "msg": "\n".join(lines[i:]) } } )
@@ -507,7 +521,7 @@ class Window(QMainWindow):
       # disable all board interaction
       self.editors.closeAll()
       self.fileview.set(None)
-      self.console.enable(False)
+      self.console.set_button(None)
       self.status(self.tr("Connection to board lost"));
       
       qm = QMessageBox()
@@ -545,11 +559,12 @@ class Window(QMainWindow):
       self.board.error.connect(self.on_error)
       self.board.status.connect(self.status)
       self.board.lost.connect(self.port_lost)
+      self.board.interactive.connect(self.on_interactive)
       self.board.code_downloaded.connect(self.on_code_downloaded)
 
       # start scanning for board
       self.progress(False)
-      self.console.enable(False)
+      self.console.set_button(None)
       self.show()
 
       # scan if the user isn't suppressing this
