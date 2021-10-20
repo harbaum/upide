@@ -596,7 +596,7 @@ class Board(QObject):
       if data[0] == True:
          self.on_interactive_output(data[1]+b"for more information.\r\n>>> " )
          while self.interact:
-            self.serial.readUntil(1, None, self.on_interactive_output)
+            self.serial.readUntil(.1, None, self.on_interactive_output)
             self.serial._buffer = b''
       else:
          raise RuntimeError(self.tr("Failed to enter repl"))

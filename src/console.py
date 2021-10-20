@@ -44,6 +44,7 @@ class Console(QPlainTextEdit):
         self.btn_prompt = QPushButton(QIcon(self.resource_path("assets/console_prompt.svg")), "", self)
         self.btn_prompt.setIconSize(QSize(32,32));
         self.btn_prompt.setFlat(True)
+        self.btn_prompt.setToolTip(self.tr("Enter interactive mode"));
         self.btn_prompt.resize(32, 32)
         self.btn_prompt.setStyleSheet("background-color: rgba(255, 255, 255, 0);");
         self.btn_prompt.pressed.connect(self.on_prompt)
@@ -63,10 +64,12 @@ class Console(QPlainTextEdit):
         self.enable_input(not self.interactive)
         if not self.interactive:
             self.interactive = True
+            self.btn_prompt.setToolTip(self.tr("Leave interactive mode"));
             self.btn_prompt.setIcon(QIcon(self.resource_path("assets/console_stop.svg")))
             self.interact.emit(True)
         else:
             self.interactive = False
+            self.btn_prompt.setToolTip(self.tr("Enter interactive mode"));
             self.btn_prompt.setIcon(QIcon(self.resource_path("assets/console_prompt.svg")))
             self.interact.emit(False)            
         
@@ -81,87 +84,158 @@ class Console(QPlainTextEdit):
         if enable: self.setFocus()
 
     def keyPressEvent(self, event):
+        special = { Qt.Key_Up:    "\033[A",
+                    Qt.Key_Down:  "\033[B",
+                    Qt.Key_Right: "\033[C",
+                    Qt.Key_Left:  "\033[D" }
+        
+        # print("KEY:", event.key(), Qt.Key_Up)
+            
         if self.input_enabled:
+            if event.key() in special:
+                self.input.emit(special[event.key()])
+                return
+        
             key = event.text()
-            if key != "":            
+            if key != "":
+                # print("text:", key)
                 self.input.emit(key)
 
+    def setText(self, str, tf):
+        # delete as many characters as would be inserted
+        # TODO: There's sure a nicer way to do this
+        for i in range(len(str)):
+            self.textCursor().deleteChar()
+        
+        self.textCursor().insertText(str, tf);
+                
     def appendFinal(self, str, color):
         # append directly without any further processing
-        self.moveCursor(QTextCursor.End)
         if not hasattr(self, 'tf') or not self.tf:
             self.tf = self.currentCharFormat()
         if color:
             tf = self.currentCharFormat()
             tf.setForeground(QBrush(QColor(color)))
-            self.textCursor().insertText(str, tf);
+            self.setText(str, tf)
         else:
-            self.textCursor().insertText(str, self.tf);
+            self.setText(str, self.tf)
         self.ensureCursorVisible()
 
+    def appendWithCR(self, str, color):
+        # check for return in string and go to end of line first
+        # so no linebreak is inserted
+        if "\n" in str:
+            parts = str.split("\n")
+            self.appendWithBS(parts[0], color)
+            for i in range(1, len(parts)):
+                # jump to end of line
+                cursor = self.textCursor()
+                cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.MoveAnchor)
+                self.setTextCursor(cursor)
+                
+                self.appendWithBS("\n" + parts[i], color)
+        else:
+            self.appendWithBS(str, color)
+        
     def appendWithBS(self, str, color):
+        
         # process backspace
         if "\x08" in str:
             parts = str.split("\x08")
             self.appendFinal(parts[0], color)
             for i in range(len(parts)-1):
                 # here is a BS
-                self.textCursor().deletePreviousChar()
-                
+                cursor = self.textCursor()
+                cursor.movePosition(QTextCursor.Left, QTextCursor.MoveAnchor)
+                self.setTextCursor(cursor)
+            
+                # self.textCursor().deletePreviousChar()
                 self.appendFinal(parts[i+1], color)
         else:
             self.appendFinal(str, color)
 
-    def unEsc(self, str):        
+    def unEsc(self, str):
         if len(str) < 1: return None  # not enough data to decode
         if str[0] != "[": return str  # not a [ -> just print
         if len(str) < 2: return None  # not enough data to decode
-        if str[1].isalpha(): return str[2:] # remove [K
-        return str
+
+        # a complete esc sequence consists of ESC[<num><char>
+        # parse <num> if present
+        i = 1
+        num = None
+        while i < len(str) and str[i].isdigit():
+            if num == None: num = 0
+            num = (num * 10) + int(str[i])
+            i = i + 1
+
+        # no more chars after number
+        if i >= len(str): return None
             
-    def append(self, str, color=None):
+        if str[i] == 'K':
+            cursor = self.textCursor()
+            cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
+            cursor.removeSelectedText()
+            self.setTextCursor(cursor)
+        elif str[i] == 'D':
+            if num is None: num = 1
+            cursor = self.textCursor()
+            cursor.movePosition(QTextCursor.Left, QTextCursor.MoveAnchor, num)
+            self.setTextCursor(cursor)
+        else:
+            print(">>>>>>>>>>>>>>> unsupported ESC", str[i], num)
+            
+        return str[i+1:]
+
+    def mouseDoubleClickEvent(self, event):
+        print("suppressing mouse double click event")
+                
+    def mouseClickEvent(self, event):
+        print("suppressing mouse click event")
+
+    def mousePressEvent(self, event):
+        print("suppressing mouse press event")
+
+    def append(self, str, color=None):        
         # prepend and incomplete esc sequence we may still have
         if self.esc_buffer is not None:
             str = self.esc_buffer + str
             self.esc_buffer = None
-                
-        # todo: handle special sequences
-        # 0x08    BS
-        # https://en.wikipedia.org/wiki/ANSI_escape_code#CSIsection
-        # 0x1b[K  clear to end of line (sent after BS)
 
         # check if there are escape sequences in the string
-        if "\x1b" in str:        
-            strparts = str.split("\x1b")
+        if "\033" in str:        
+            strparts = str.split("\033")
 
-            # skip everything between ESC and for letter
+            # output everything before first esc
             if len(strparts[0]) > 0:
                 # part before ESC
-                self.appendWithBS(strparts[0], color)
+                self.appendWithCR(strparts[0], color)
 
             # there are "middle parts"
             if len(strparts) > 2:
                 # process everything but the last one directly
                 for i in range(len(strparts)-2):
-                    self.appendWithBS(self.unEsc(strparts[1+i]))
+                    d = self.unEsc(strparts[1+i])
+                    if d is not None:
+                        self.appendWithCR(d, color)
 
             # and the rest may potentially be incomplete (yet) ...
             d = self.unEsc(strparts[-1])
             # whole ESC sequence could be removed
             if d is not None:
-                self.appendWithBS(d, color)
+                self.appendWithCR(d, color)
             else:
                 # store incomplete esc sequence
-                self.esc_buffer = "\x1b" + strparts[-1]
-                    
+                self.esc_buffer = "\033" + strparts[-1]
         else:
-            self.appendWithBS(str, color)
+            self.appendWithCR(str, color)
             
     def appendBytes(self, b):
         # prepend everything we might still have in buffer
         if len(self.buffer) > 0:
             b = self.buffer + b
             self.buffer = b""
+
+        if len(b) == 0: return
         
         # try to decode bytes
         try:
@@ -170,8 +244,9 @@ class Console(QPlainTextEdit):
             # "border". This causes an decoding exception and the
             # incomplete undecoded part is stored until more data
             # has arrived.
-            str = b.decode("utf-8")
-            str = str.replace('\r', '').replace('\x04', '')  # filter out \r and \x04
-            self.append(str)
-        except:
+            msg = b.decode("utf-8")
+            msg = msg.replace('\r', '').replace('\x04', '')  # filter out \r and \x04
+            self.append(msg)
+        except Exception as e:
+            print("EX", str(e))
             self.buffer = b

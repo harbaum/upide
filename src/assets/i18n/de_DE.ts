@@ -61,6 +61,19 @@
     </message>
 </context>
 <context>
+    <name>Console</name>
+    <message>
+        <location filename="../../console.py" line="72"/>
+        <source>Enter interactive mode</source>
+        <translation>Starte interaktiven Modus</translation>
+    </message>
+    <message>
+        <location filename="../../console.py" line="67"/>
+        <source>Leave interactive mode</source>
+        <translation>Verlasse interaktiven Modus</translation>
+    </message>
+</context>
+<context>
     <name>EditorTabs</name>
     <message>
         <location filename="../../editors.py" line="50"/>
