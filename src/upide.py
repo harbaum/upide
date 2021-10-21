@@ -423,9 +423,9 @@ class Window(QMainWindow):
          if len(loc[0].strip().split(" ")) > 1:
             filename = loc[0].strip().split(" ")[1].strip("\"")
             # editor expects full path names
-            if not filename.startswith("/"):
+            if not filename == "<stdin>" and not filename.startswith("/"):
                filename = "/" + filename
-            
+
          if filename == "<stdin>": filename = name
 
          # try to highlight. If that fails since e.g. the file is not loaded
