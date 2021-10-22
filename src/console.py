@@ -50,6 +50,12 @@ class Console(QPlainTextEdit):
         self.btn_prompt.pressed.connect(self.on_prompt)
         self.interactive = False
 
+        self.savedCursor = None
+
+    def insertFromMimeData(self, mimedata):
+        # make sure pasted text goes through the device
+        self.input.emit(mimedata.text())
+        
     def resizeEvent(self, event):
         super().resizeEvent(event)
 
@@ -88,12 +94,16 @@ class Console(QPlainTextEdit):
         if enable: self.setFocus()
 
     def keyPressEvent(self, event):
-        special = { Qt.Key_Up:    "\033[A",
-                    Qt.Key_Down:  "\033[B",
-                    Qt.Key_Right: "\033[C",
-                    Qt.Key_Left:  "\033[D" }
+        special = { Qt.Key_Up:     "\033[A",
+                    Qt.Key_Down:   "\033[B",
+                    Qt.Key_Right:  "\033[C",
+                    Qt.Key_Left:   "\033[D",
+                    Qt.Key_Home:   "\033[1~",
+                    Qt.Key_Delete: "\033[3~",
+                    Qt.Key_End:    "\033[4~",
+        }
         
-        # print("KEY:", event.key(), Qt.Key_Up)
+        # print("KEY:", event.key(), event.text().encode())
             
         if self.input_enabled:
             if event.key() in special:
@@ -106,12 +116,12 @@ class Console(QPlainTextEdit):
                 self.input.emit(key)
 
     def setText(self, str, tf):
-        # delete as many characters as would be inserted
-        # TODO: There's sure a nicer way to do this
-        for i in range(len(str)):
-            self.textCursor().deleteChar()
-        
-        self.textCursor().insertText(str, tf);
+        # delete as many characters as would be inserted to
+        # implement some overwrite
+        cursor = self.textCursor()
+        cursor.movePosition(QTextCursor.Right, QTextCursor.KeepAnchor, len(str))
+        cursor.removeSelectedText()
+        cursor.insertText(str, tf);
                 
     def appendFinal(self, str, color):
         # append directly without any further processing
@@ -190,14 +200,14 @@ class Console(QPlainTextEdit):
             
         return str[i+1:]
 
-    def mouseDoubleClickEvent(self, event):
-        print("suppressing mouse double click event")
+#    def mouseDoubleClickEvent(self, event):
+#        print("suppressing mouse double click event")
                 
-    def mouseClickEvent(self, event):
-        print("suppressing mouse click event")
+#    def mouseClickEvent(self, event):
+#        print("suppressing mouse click event")
 
-    def mousePressEvent(self, event):
-        print("suppressing mouse press event")
+#    def mousePressEvent(self, event):
+#        print("suppressing mouse press event")
 
     def append(self, str, color=None):        
         # prepend and incomplete esc sequence we may still have
@@ -240,6 +250,12 @@ class Console(QPlainTextEdit):
             self.buffer = b""
 
         if len(b) == 0: return
+
+        # the user may have moved the cursor using the mouse. Undo
+        # that and restore the cursor position micropython expects
+        if self.savedCursor:
+            self.setTextCursor(self.savedCursor)
+            self.savedCursor = None
         
         # try to decode bytes
         try:
@@ -254,3 +270,6 @@ class Console(QPlainTextEdit):
         except Exception as e:
             print("EX", str(e))
             self.buffer = b
+
+        # save cursor
+        self.savedCursor = self.textCursor()
