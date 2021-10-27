@@ -4,32 +4,32 @@
 <context>
     <name>Board</name>
     <message>
-        <location filename="../../board.py" line="568"/>
+        <location filename="../../board.py" line="569"/>
         <source>No board found!</source>
         <translation>Kein Board gefunden!</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="567"/>
+        <location filename="../../board.py" line="568"/>
         <source>no board</source>
         <translation>kein Board</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="445"/>
+        <location filename="../../board.py" line="446"/>
         <source>&lt;unknown&gt;</source>
         <translation>&lt;unbekannt&gt;</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="458"/>
+        <location filename="../../board.py" line="459"/>
         <source>Error: Board not responding to command!</source>
         <translation>Fehler: Board antwortet nicht auf Befehl!</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="563"/>
+        <location filename="../../board.py" line="564"/>
         <source>Checking port {}</source>
-        <translation>Untersuche Port {}</translation>
+        <translation>Untersuche Anschluss {}</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="602"/>
+        <location filename="../../board.py" line="607"/>
         <source>Failed to enter repl</source>
         <translation>Konnte REPL nicht starten</translation>
     </message>
@@ -63,12 +63,12 @@
 <context>
     <name>Console</name>
     <message>
-        <location filename="../../console.py" line="72"/>
+        <location filename="../../console.py" line="73"/>
         <source>Enter interactive mode</source>
         <translation>Starte interaktiven Modus</translation>
     </message>
     <message>
-        <location filename="../../console.py" line="67"/>
+        <location filename="../../console.py" line="69"/>
         <source>Leave interactive mode</source>
         <translation>Verlasse interaktiven Modus</translation>
     </message>
@@ -306,121 +306,131 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
 <context>
     <name>Window</name>
     <message>
-        <location filename="../../upide.py" line="83"/>
+        <location filename="../../upide_noscan.py" line="83"/>
         <source>Saved {}</source>
         <translation>{} gespeichert</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="98"/>
+        <location filename="../../upide_noscan.py" line="98"/>
         <source>Saving aborted with error</source>
         <translation>Speichern mit Fehler abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="127"/>
+        <location filename="../../upide_noscan.py" line="127"/>
         <source>Code execution successful</source>
         <translation>Codeausführung erfolgreich</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="128"/>
+        <location filename="../../upide_noscan.py" line="128"/>
         <source>Code execution aborted with error</source>
         <translation>Codeausführung mit Fehler abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="134"/>
+        <location filename="../../upide_noscan.py" line="134"/>
         <source>Running code ...</source>
         <translation>Führe Code aus ...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="311"/>
+        <location filename="../../upide_noscan.py" line="325"/>
         <source>{0} connected, MicroPython V{1} on {2}</source>
         <translation>{0} verbunden,  MicroPython V{1} auf {2}</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="360"/>
+        <location filename="../../upide_noscan.py" line="374"/>
         <source>Search done</source>
         <translation>Suche beendet</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="495"/>
+        <location filename="../../upide_noscan.py" line="509"/>
         <source>Connecting port {}...</source>
         <translation>Verbinde port {}...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="538"/>
+        <location filename="../../upide_noscan.py" line="552"/>
         <source>Starting ...</source>
         <translation>Starte ...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="46"/>
+        <location filename="../../upide_noscan.py" line="46"/>
         <source>Really quit?</source>
         <translation>Wirklich beenden?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="215"/>
+        <location filename="../../upide_noscan.py" line="215"/>
         <source>Import failed</source>
         <translation>Importieren fehlgeschlagen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="46"/>
+        <location filename="../../upide_noscan.py" line="46"/>
         <source>Your workspace contains unsaved changes.</source>
         <translation>Der Arbeitsplatz enthält ungespeicherte Änderungen.</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="343"/>
+        <location filename="../../upide_noscan.py" line="357"/>
         <source>Flash...</source>
         <translation>Flashen...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="338"/>
+        <location filename="../../upide_noscan.py" line="352"/>
         <source>No board found</source>
         <translation>Kein Bord gefunden</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="338"/>
+        <location filename="../../upide_noscan.py" line="352"/>
         <source>No MicroPython board was detected!</source>
         <translation>Kein Micropython-Bord wurde erkannt!</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="338"/>
+        <location filename="../../upide_noscan.py" line="352"/>
         <source>Do you want to flash the MicroPython firmware or retry searching for a MicroPython board?</source>
         <translation>Möchten Sie die Micropython-Firmware flashen oder die Suche wiederholen?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="404"/>
+        <location filename="../../upide_noscan.py" line="418"/>
         <source>Stopped by user</source>
         <translation>Durch Benutzer abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="225"/>
+        <location filename="../../upide_noscan.py" line="225"/>
         <source>Error</source>
         <translation>Fehler</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="511"/>
+        <location filename="../../upide_noscan.py" line="525"/>
         <source>Connection to board lost</source>
         <translation>Verbindung zum Bord verloren</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="514"/>
+        <location filename="../../upide_noscan.py" line="528"/>
         <source>Board lost</source>
         <translation>Bord verloren</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="514"/>
+        <location filename="../../upide_noscan.py" line="528"/>
         <source>The connection to the board has been lost!
 Do you want to reconnect?</source>
         <translation>Die Verbindung zum Bord wurde verloren!
 Soll versucht werden, die Verbindung wieder herzustellen?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="296"/>
+        <location filename="../../upide_noscan.py" line="311"/>
         <source>Interactive mode active</source>
         <translation>Interaktiver Modus aktiv</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="299"/>
+        <location filename="../../upide_noscan.py" line="298"/>
         <source>Interactive mode done</source>
         <translation>Interaktiver Modus beendet</translation>
+    </message>
+    <message>
+        <location filename="../../upide_noscan.py" line="467"/>
+        <source>Select port</source>
+        <translation>Anschlussauswahl</translation>
+    </message>
+    <message>
+        <location filename="../../upide_noscan.py" line="477"/>
+        <source>Port:</source>
+        <translation>Anschluss:</translation>
     </message>
 </context>
 </TS>

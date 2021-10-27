@@ -464,8 +464,8 @@ class Window(QMainWindow):
       # to scan for devices by itself
       
       self.port_dialog = QDialog(self)
-      self.port_dialog.setWindowTitle("Select port")
-      self.port_dialog.resize(300,-1)
+      self.port_dialog.setWindowTitle(self.tr("Select port"))
+      self.port_dialog.resize(300,1)
 
       vbox = QVBoxLayout()
       
@@ -474,7 +474,7 @@ class Window(QMainWindow):
       portbox = QHBoxLayout()
       portbox.setContentsMargins(0,0,0,0)
       port_w.setLayout(portbox)
-      portbox.addWidget(QLabel("Port:"))
+      portbox.addWidget(QLabel(self.tr("Port:")))
       self.port_cbox = QComboBox()
       self.port_cbox.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon);
       for p in self.board.getPorts(): self.port_cbox.addItem(str(p), p)
