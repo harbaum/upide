@@ -290,12 +290,13 @@ class CodeEditor(QPlainTextEdit):
         if m: self.highlight(None)        
             
     def setCode(self, code):
-        self.code = code   # save code
-
         if code is not None:        
             # the editor works internally with \n only
             code = code.replace('\r', '')        
+            self.code = code   # save code
             self.setPlainText(code)
+        else:
+            self.code = None
         
     def set_button(self, mode):
         # True = run, False = stop, None = disabled
