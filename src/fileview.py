@@ -703,7 +703,7 @@ class FileView(QTreeView):
       # invisible root item
       root = FileNode("")
 
-      if files:
+      if files != None:
          rootdir = FileNode(self.rootname)
          root.addChild(rootdir)
          for i in self.getItems(files, ""):

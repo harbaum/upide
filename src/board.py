@@ -49,6 +49,11 @@ class BoardThread(QThread):
 
    def file_progress(self, b):
       self.len += len(b)
+      
+      if self.parms["size"] == 0:
+         self.board.queue.put( (Board.PROGRESS, 100 ) )
+         return
+         
       # 50 * ... because the file is being transferred in hex which
       # doubles the number of bytes to be transferred
       percent = 50 * self.len // self.parms["size"]
