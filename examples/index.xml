@@ -3,4 +3,21 @@
   <section name="pyboard" description="PyBoard">
     <example name="leds.py" description="Running led lights"/>      
   </section>
+
+  <section name="buch" description="Micropython mit µPIDE">
+    <section name="leuchtanzeigen" description="Leuchtanzeigen">
+      <example name="led_blink.py" description="Blinkende Leuchtdiode"/>
+      <example name="led_rgb.py" description="RGB-Vollfarbleuchtdiode"/>      
+      <example name="led_bar.py" description="Baranzeige"/>
+      <example name="7seg_run.py" description="7-Segment-Lauflicht"/>
+      <example name="7seg_cnt.py" description="7-Segment-Zähler"/>
+      <example name="7seg_x4.py" description="Vierfache 7-Segment-Anzeige"/>
+      <example name="ledmatrix_dot.py" description="LED-Matrix Einzelpunkt"/>   
+      <example name="ledmatrix_line.py" description="LED-Matrix Linie"/>   
+      <example name="ledmatrix_smiley.py" description="LED-Matrix Smiley"/>   
+      <example name="ledmatrix_banner.py" description="LED-Matrix Banner"/>   
+      <example name="ws2812_demo.py" description="Neopixel-Demo"/>   
+      <example name="ws2812_rainbow.py" description="Neopixel-Regenbogen"/>   
+    </section>
+  </section>
 </examples>
