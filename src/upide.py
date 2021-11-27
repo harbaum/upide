@@ -27,6 +27,7 @@ from fileview import FileView
 from console import Console
 from editors import Editors
 from esp_installer import EspInstaller
+import zipfile
 
 class Window(QMainWindow):
    def __init__(self, app, noscan):
@@ -183,6 +184,66 @@ class Window(QMainWindow):
             # else it's a newly created file
             self.editors.new(name)
 
+   def backup_done(self, ok):
+      if ok: self.status(self.tr("Backup successful"))
+      else:  self.status(self.tr("Backup failed"))
+      # re-enable UI     
+      self.on_board_request(False)
+      self.console.set_button(True)
+
+      if self.zip:
+         self.zip.close()
+         self.zip = None
+
+   def on_backup_file(self, success, ctx):
+      print("on_backup_file", success, ctx)
+      if not success:
+         # backup failed
+         self.backup_done(False)
+         return
+
+      # write file to zip
+      with self.zip.open(ctx["name"], mode='w') as f:
+         f.write(ctx["code"].encode("utf-8"))
+         f.close()
+      
+      # backup next file
+      self.backup_file(self.fileview.get_next_file(ctx["name"]))
+
+   def backup_file(self, f):
+      if not f:
+         # no more file to backup
+         self.backup_done(True)
+         return
+
+      # get file node
+      node = self.fileview.findNode(f)
+      if not node:
+         # problem getting file node
+         print("ERROR getting node for", f)
+         self.backup_done(False)
+         return
+         
+      self.on_board_request(True)
+      self.console.set_button(None)
+      self.status(self.tr("Backing up: "+f))
+      self.board.cmd(Board.GET_FILE, self.on_backup_file, { "name": f, "size": node.size } )
+      
+      # user wants to make a full backup
+   def on_backup(self):            
+      # select a zip file to backup into
+      fname = QFileDialog.getSaveFileName(self, self.tr('Create backup'),'.',self.tr("Backup archive (*.zip)"))[0]
+      if fname:
+         if not fname.lower().endswith(".zip"):
+            fname = fname + ".zip"
+
+         print("do full backup to", fname)
+         self.zip = zipfile.ZipFile(fname, 'w')
+
+         # start backup with first file
+         f = self.fileview.get_next_file()
+         self.backup_file(f)
+            
       # user wants to create a new directory
    def on_mkdir(self, name):
       try:
@@ -266,6 +327,7 @@ class Window(QMainWindow):
       self.fileview.host_import.connect(self.on_import)
       self.fileview.example_import.connect(self.on_example)
       self.fileview.example_imported.connect(self.on_example_imported)
+      self.fileview.backup.connect(self.on_backup)
       hsplitter.addWidget(self.fileview)
       hsplitter.setStretchFactor(0, 1)
 

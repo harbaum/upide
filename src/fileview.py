@@ -277,6 +277,7 @@ class FileView(QTreeView):
    example_import = pyqtSignal(str, str, bool)
    example_imported = pyqtSignal(str, str)
    selection_changed = pyqtSignal(str)
+   backup = pyqtSignal()
    
    def __init__(self):
       super().__init__()
@@ -289,7 +290,10 @@ class FileView(QTreeView):
       self.contextMenu = QMenu(self);
       self.firmwareAction = QAction(self.tr("Firmware..."), self.contextMenu);
       self.firmwareAction.triggered.connect(self.on_context_firmware)
-      self.contextMenu.addAction(self.firmwareAction);
+      self.contextMenu.addAction(self.firmwareAction);      
+      self.backupAction = QAction(self.tr("Backup..."), self.contextMenu);
+      self.backupAction.triggered.connect(self.on_context_backup)
+      self.contextMenu.addAction(self.backupAction);
       self.newMenu = self.contextMenu.addMenu(self.tr("New"))      
       self.newAction = QAction(self.tr("File..."), self.newMenu);
       self.newAction.triggered.connect(self.on_context_new)
@@ -484,7 +488,32 @@ class FileView(QTreeView):
       
    def on_context_firmware(self):
       self.firmware.emit()
+
+   def get_next_file(self, name = None, node = None, path = ""):
+      if node == None:
+         node = self.model()._root.child(0)
+         self.return_next_name = (name == None)         
+         
+      for ci in range(node.childCount()):
+         child = node.child(ci)
+         
+         # return first match if no name was given
+         if child.size != None and self.return_next_name:
+            return path+"/"+child.name
+         
+         if name == path+"/"+child.name:
+            self.return_next_name = True
+
+         # decent into subdirs
+         if child.size == None:
+            r = self.get_next_file(name, child, path+"/"+child.name)
+            if r != None: return r 
+
+      return None
       
+   def on_context_backup(self):
+      self.backup.emit()
+            
    def on_context_open(self):
       self.open.emit(self.context_entry[0], self.context_entry[1])
       
@@ -613,8 +642,10 @@ class FileView(QTreeView):
 
          self.setCurrentIndex(index)
       
-         # only the root entry has the firmware entry
+         # only the root entry has the firmware entry ...
          self.firmwareAction.setVisible(size == None and name == "")
+         # ... and also the backup
+         self.backupAction.setVisible(size == None and name == "")
          
          # size is "None" for directories
 
