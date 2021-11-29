@@ -4,32 +4,32 @@
 <context>
     <name>Board</name>
     <message>
-        <location filename="../../board.py" line="574"/>
+        <location filename="../../board.py" line="577"/>
         <source>No board found!</source>
         <translation>Kein Board gefunden!</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="573"/>
+        <location filename="../../board.py" line="576"/>
         <source>no board</source>
         <translation>kein Board</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="451"/>
+        <location filename="../../board.py" line="454"/>
         <source>&lt;unknown&gt;</source>
         <translation>&lt;unbekannt&gt;</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="464"/>
+        <location filename="../../board.py" line="467"/>
         <source>Error: Board not responding to command!</source>
         <translation>Fehler: Board antwortet nicht auf Befehl!</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="569"/>
+        <location filename="../../board.py" line="572"/>
         <source>Checking port {}</source>
         <translation>Untersuche Anschluss {}</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="612"/>
+        <location filename="../../board.py" line="615"/>
         <source>Failed to enter repl</source>
         <translation>Konnte REPL nicht starten</translation>
     </message>
@@ -198,114 +198,129 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
 <context>
     <name>FileView</name>
     <message>
-        <location filename="../../fileview.py" line="880"/>
+        <location filename="../../fileview.py" line="888"/>
         <source>A file or directory with that name already exists</source>
         <translation>Eine Datei mit dem Namen existiert bereits</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="447"/>
+        <location filename="../../fileview.py" line="452"/>
         <source>The directory name must not be empty and must not contain the characters \,/,:,*,&quot;,&lt;,&gt; or |</source>
         <translation>Der Verzeichnisname darf nicht leer sein und darf die Zeichen \,/,:,*,&quot;,&lt;,&gt; oder | nicht entalten</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="469"/>
+        <location filename="../../fileview.py" line="474"/>
         <source>The file name must not be empty and must not contain the characters \,/,:,*,&quot;,&lt;,&gt; or |</source>
         <translation>Der Dateiname darf nicht leer sein und darf die Zeichen \,/,:,*,&quot;,&lt;,&gt; oder | nicht entalten</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="536"/>
+        <location filename="../../fileview.py" line="544"/>
         <source>The file name must not be empty!</source>
         <translation>Der Dateiname darf nicht leer sein!</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="867"/>
+        <location filename="../../fileview.py" line="875"/>
         <source>A file with that name already exists</source>
         <translation>Eine Datei mit dem Namen existier bereits</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="871"/>
+        <location filename="../../fileview.py" line="879"/>
         <source>Unable to import non-python file.</source>
         <translation>Es können nur Python-Dateien importiert werden.</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="629"/>
+        <location filename="../../fileview.py" line="637"/>
         <source>Really delete?</source>
         <translation>Wirklich löschen?</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="629"/>
+        <location filename="../../fileview.py" line="637"/>
         <source>Do you really want to delete {} from the board?</source>
         <translation>Soll die Datei {} wirklich vom Gerät entfernt werden?</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="284"/>
+        <location filename="../../fileview.py" line="285"/>
         <source>Board</source>
         <translation>Bord</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="291"/>
+        <location filename="../../fileview.py" line="292"/>
         <source>Firmware...</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="297"/>
+        <location filename="../../fileview.py" line="302"/>
         <source>New</source>
         <translation>Neu</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="298"/>
+        <location filename="../../fileview.py" line="303"/>
         <source>File...</source>
         <translation>Datei...</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="301"/>
+        <location filename="../../fileview.py" line="306"/>
         <source>Directory...</source>
         <translation>Verzeichnis...</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="304"/>
+        <location filename="../../fileview.py" line="309"/>
         <source>Open</source>
         <translation>Öffnen</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="308"/>
+        <location filename="../../fileview.py" line="313"/>
         <source>Rename...</source>
         <translation>Umbenennen...</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="312"/>
+        <location filename="../../fileview.py" line="317"/>
         <source>Delete...</source>
         <translation>Löschen...</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="376"/>
+        <location filename="../../fileview.py" line="381"/>
         <source>Examples</source>
         <translation>Beispiele</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="442"/>
+        <location filename="../../fileview.py" line="447"/>
         <source>New directory</source>
         <translation>Neues Verzeichnis</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="442"/>
+        <location filename="../../fileview.py" line="447"/>
         <source>Enter new directory name:</source>
         <translation>Neuen Verzeichnisnamen eingeben:</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="465"/>
+        <location filename="../../fileview.py" line="470"/>
         <source>New file</source>
         <translation>Neue Datei</translation>
     </message>
     <message>
-        <location filename="../../fileview.py" line="465"/>
+        <location filename="../../fileview.py" line="470"/>
         <source>Enter new file name:</source>
         <translation>Neuen Dateinamen eingeben:</translation>
     </message>
     <message>
         <location filename="../../fileview.py" line="294"/>
         <source>Backup...</source>
-        <translation>Sicherung...</translation>
+        <translation type="obsolete">Sicherung...</translation>
+    </message>
+    <message>
+        <location filename="../../fileview.py" line="295"/>
+        <source>Backup</source>
+        <translation>Sicherung</translation>
+    </message>
+    <message>
+        <location filename="../../fileview.py" line="296"/>
+        <source>Create...</source>
+        <translation>Erstellen...</translation>
+    </message>
+    <message>
+        <location filename="../../fileview.py" line="299"/>
+        <source>Restore...</source>
+        <translation>Wiederherstellen...</translation>
     </message>
 </context>
 <context>
@@ -336,22 +351,22 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
         <translation>Führe Code aus ...</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="387"/>
+        <location filename="../../upide_noscan.py" line="510"/>
         <source>{0} connected, MicroPython V{1} on {2}</source>
         <translation>{0} verbunden,  MicroPython V{1} auf {2}</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="436"/>
+        <location filename="../../upide_noscan.py" line="559"/>
         <source>Search done</source>
         <translation>Suche beendet</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="571"/>
+        <location filename="../../upide_noscan.py" line="694"/>
         <source>Connecting port {}...</source>
         <translation>Verbinde port {}...</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="614"/>
+        <location filename="../../upide_noscan.py" line="737"/>
         <source>Starting ...</source>
         <translation>Starte ...</translation>
     </message>
@@ -361,7 +376,7 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
         <translation>Wirklich beenden?</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="276"/>
+        <location filename="../../upide_noscan.py" line="397"/>
         <source>Import failed</source>
         <translation>Importieren fehlgeschlagen</translation>
     </message>
@@ -371,69 +386,69 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
         <translation>Der Arbeitsplatz enthält ungespeicherte Änderungen.</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="419"/>
+        <location filename="../../upide_noscan.py" line="542"/>
         <source>Flash...</source>
         <translation>Flashen...</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="414"/>
+        <location filename="../../upide_noscan.py" line="537"/>
         <source>No board found</source>
         <translation>Kein Bord gefunden</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="414"/>
+        <location filename="../../upide_noscan.py" line="537"/>
         <source>No MicroPython board was detected!</source>
         <translation>Kein Micropython-Bord wurde erkannt!</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="414"/>
+        <location filename="../../upide_noscan.py" line="537"/>
         <source>Do you want to flash the MicroPython firmware or retry searching for a MicroPython board?</source>
         <translation>Möchten Sie die Micropython-Firmware flashen oder die Suche wiederholen?</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="480"/>
+        <location filename="../../upide_noscan.py" line="603"/>
         <source>Stopped by user</source>
         <translation>Durch Benutzer abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="286"/>
+        <location filename="../../upide_noscan.py" line="407"/>
         <source>Error</source>
         <translation>Fehler</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="587"/>
+        <location filename="../../upide_noscan.py" line="710"/>
         <source>Connection to board lost</source>
         <translation>Verbindung zum Bord verloren</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="590"/>
+        <location filename="../../upide_noscan.py" line="713"/>
         <source>Board lost</source>
         <translation>Bord verloren</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="590"/>
+        <location filename="../../upide_noscan.py" line="713"/>
         <source>The connection to the board has been lost!
 Do you want to reconnect?</source>
         <translation>Die Verbindung zum Bord wurde verloren!
 Soll versucht werden, die Verbindung wieder herzustellen?</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="373"/>
+        <location filename="../../upide_noscan.py" line="495"/>
         <source>Interactive mode active</source>
         <translation>Interaktiver Modus aktiv</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="360"/>
+        <location filename="../../upide_noscan.py" line="482"/>
         <source>Interactive mode done</source>
         <translation>Interaktiver Modus beendet</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="529"/>
+        <location filename="../../upide_noscan.py" line="652"/>
         <source>Select port</source>
         <translation>Anschlussauswahl</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="539"/>
+        <location filename="../../upide_noscan.py" line="662"/>
         <source>Port:</source>
         <translation>Anschluss:</translation>
     </message>
@@ -448,19 +463,39 @@ Soll versucht werden, die Verbindung wieder herzustellen?</translation>
         <translation>Sicherung fehlgeschlagen</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="229"/>
+        <location filename="../../upide_noscan.py" line="234"/>
         <source>Backing up: </source>
         <translation>Sichere: </translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="235"/>
+        <location filename="../../upide_noscan.py" line="240"/>
         <source>Create backup</source>
         <translation>Erzeuge Sicherung</translation>
     </message>
     <message>
-        <location filename="../../upide_noscan.py" line="235"/>
+        <location filename="../../upide_noscan.py" line="346"/>
         <source>Backup archive (*.zip)</source>
         <translation>Sicherungsarchiv (*.zip)</translation>
+    </message>
+    <message>
+        <location filename="../../upide_noscan.py" line="260"/>
+        <source>Restoration successful</source>
+        <translation>Wiederherstellung erfolgreich</translation>
+    </message>
+    <message>
+        <location filename="../../upide_noscan.py" line="261"/>
+        <source>Restoration failed</source>
+        <translation>Wiederherstellung fehlgeschlagen</translation>
+    </message>
+    <message>
+        <location filename="../../upide_noscan.py" line="317"/>
+        <source>Restoring: </source>
+        <translation>Stelle wieder her: </translation>
+    </message>
+    <message>
+        <location filename="../../upide_noscan.py" line="346"/>
+        <source>Restore backup</source>
+        <translation>Sicherung wiederherstellen</translation>
     </message>
 </context>
 </TS>

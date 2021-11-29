@@ -399,10 +399,13 @@ class Board(QObject):
 
       # data is "put" in chunks
       size = len(data)
-      for i in range(0, size, 64):
-         chunk = repr(data[i : i + min(64, size - i)])
-         command += "            f.write({0})\n".format(chunk)
-
+      if size > 0:
+         for i in range(0, size, 64):
+            chunk = repr(data[i : i + min(64, size - i)])
+            command += "            f.write({0})\n".format(chunk)
+      else:
+         command += "            pass\n"      
+         
       print("command:", command)
       self.replDo(command)
 

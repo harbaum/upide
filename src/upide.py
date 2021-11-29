@@ -196,17 +196,24 @@ class Window(QMainWindow):
          self.zip = None
 
    def on_backup_file(self, success, ctx):
-      print("on_backup_file", success, ctx)
       if not success:
          # backup failed
          self.backup_done(False)
          return
 
-      # write file to zip
-      with self.zip.open(ctx["name"], mode='w') as f:
-         f.write(ctx["code"].encode("utf-8"))
-         f.close()
-      
+      try:
+         # write file to zip, but without leading slash
+         name = ctx["name"]
+         if name.startswith("/"):
+            name = name[1:]
+         
+         with self.zip.open(name, mode='w') as f:
+            f.write(ctx["code"].encode("utf-8"))
+            f.close()
+      except Exception as e:
+         self.backup_done(False)
+         return
+            
       # backup next file
       self.backup_file(self.fileview.get_next_file(ctx["name"]))
 
@@ -224,9 +231,7 @@ class Window(QMainWindow):
          self.backup_done(False)
          return
          
-      self.on_board_request(True)
-      self.console.set_button(None)
-      self.status(self.tr("Backing up: "+f))
+      self.status(self.tr("Backing up: "+f.split("/")[-1]))
       self.board.cmd(Board.GET_FILE, self.on_backup_file, { "name": f, "size": node.size } )
       
       # user wants to make a full backup
@@ -237,12 +242,128 @@ class Window(QMainWindow):
          if not fname.lower().endswith(".zip"):
             fname = fname + ".zip"
 
-         print("do full backup to", fname)
-         self.zip = zipfile.ZipFile(fname, 'w')
+         # disable gui during backup
+         self.on_board_request(True)
+         self.console.set_button(None)
+      
+         try:
+            self.zip = zipfile.ZipFile(fname, 'w')
+         except Exception as e:
+            self.backup_done(False)
+            return
 
          # start backup with first file
          f = self.fileview.get_next_file()
          self.backup_file(f)
+         
+   def restore_done(self, ok):
+      if ok: self.status(self.tr("Restoration successful"))
+      else:  self.status(self.tr("Restoration failed"))
+
+      if self.zip:
+         self.zip.close()
+         self.zip = None
+
+      # once done reload the entire fileview. This will also
+      # re-enable the ui
+      self.board.cmd(Board.LISTDIR, self.on_listdir)
+      
+   def restore_get_next_file(self, f = None):
+      files = self.zip.namelist()
+      if not f:
+         # no filename give -> restore first file
+         idx = -1
+      else:
+         idx = files.index(f)
+         if idx < 0: return None
+
+      while idx+1 < len(files):
+         # don't explicitely restore directories. They
+         # are implicitely restored via the file names. This
+         # should actually never happen with the backup
+         # files as they don't explicitely store directories at all
+         fname = files[idx+1]
+         if not fname.endswith("/"):
+            return fname
+
+         idx = idx + 1
+         
+      return None
+         
+   def restore_mkdir(self, name):
+      try:
+         self.board.mkdir(name)
+      except Exception as e:
+         return False
+
+      return True
+
+   def on_restore_file(self, success):
+      print("restore ctx", success)
+
+      if not success:
+         self.restore_done(False)
+         return
+      
+      # restore next file
+      f = self.restore_get_next_file(self.restore_file_name)
+      if f == None:
+         self.restore_done(True)
+         return
+
+      self.restore_file(f)
+         
+   def restore_file(self, f):
+      self.status(self.tr("Restoring: "+f.split("/")[-1]))
+
+      # check if whole path exists
+      path_parts = f.split("/")[:-1]
+      if len(path_parts) > 0:
+         # check if path already exists
+         for i in range(len(path_parts)):
+            check_path = "/" + "/".join(path_parts[:i+1])
+            if not self.fileview.exists(check_path):
+               if not self.restore_mkdir(check_path):
+                  # failed to create directory. Abort restore
+                  self.restore_done(False)
+                  return
+
+      # full path should now exist, so restore file      
+      try:
+         with self.zip.open(f, 'r') as infile:
+            data = infile.read()
+            infile.close()
+            self.restore_file_name = f
+            self.board.cmd(Board.PUT_FILE, self.on_restore_file, { "name": f, "code": data } )
+      except Exception as e:
+         print("restore exception", str(e))
+         self.restore_done(False)
+         return
+
+      # user wants to restore a full backup
+   def on_restore(self):            
+      # select a zip file to extract backup from
+      fname = QFileDialog.getOpenFileName(self, self.tr('Restore backup'),'.',self.tr("Backup archive (*.zip)"))[0]
+      if fname:
+         if not fname.lower().endswith(".zip"):
+            fname = fname + ".zip"
+
+         # disable gui during restore
+         self.on_board_request(True)
+         self.console.set_button(None)
+
+         try:
+            self.zip = zipfile.ZipFile(fname, 'r')
+         except Exception as e:
+            self.restore_done(False)
+            return
+
+         f = self.restore_get_next_file()
+         if not f:
+            self.restore_done(True)
+            return
+            
+         self.restore_file(f)
             
       # user wants to create a new directory
    def on_mkdir(self, name):
@@ -328,6 +449,7 @@ class Window(QMainWindow):
       self.fileview.example_import.connect(self.on_example)
       self.fileview.example_imported.connect(self.on_example_imported)
       self.fileview.backup.connect(self.on_backup)
+      self.fileview.restore.connect(self.on_restore)
       hsplitter.addWidget(self.fileview)
       hsplitter.setStretchFactor(0, 1)
 
@@ -378,6 +500,7 @@ class Window(QMainWindow):
       self.statusBar().showMessage(str);      
 
    def on_listdir(self, success, files=None):
+      # re-enable UI
       self.on_board_request(False)
       self.console.set_button(True)
       if success:
