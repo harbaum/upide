@@ -278,6 +278,7 @@ class FileView(QTreeView):
    example_imported = pyqtSignal(str, str)
    selection_changed = pyqtSignal(str)
    backup = pyqtSignal()
+   restore = pyqtSignal()
    
    def __init__(self):
       super().__init__()
@@ -291,9 +292,13 @@ class FileView(QTreeView):
       self.firmwareAction = QAction(self.tr("Firmware..."), self.contextMenu);
       self.firmwareAction.triggered.connect(self.on_context_firmware)
       self.contextMenu.addAction(self.firmwareAction);      
-      self.backupAction = QAction(self.tr("Backup..."), self.contextMenu);
+      self.backupMenu = self.contextMenu.addMenu(self.tr("Backup"))      
+      self.backupAction = QAction(self.tr("Create..."), self.backupMenu);
       self.backupAction.triggered.connect(self.on_context_backup)
-      self.contextMenu.addAction(self.backupAction);
+      self.backupMenu.addAction(self.backupAction);
+      self.restoreAction = QAction(self.tr("Restore..."), self.backupMenu);
+      self.restoreAction.triggered.connect(self.on_context_restore)
+      self.backupMenu.addAction(self.restoreAction);
       self.newMenu = self.contextMenu.addMenu(self.tr("New"))      
       self.newAction = QAction(self.tr("File..."), self.newMenu);
       self.newAction.triggered.connect(self.on_context_new)
@@ -513,6 +518,9 @@ class FileView(QTreeView):
       
    def on_context_backup(self):
       self.backup.emit()
+      
+   def on_context_restore(self):
+      self.restore.emit()
             
    def on_context_open(self):
       self.open.emit(self.context_entry[0], self.context_entry[1])
@@ -645,7 +653,7 @@ class FileView(QTreeView):
          # only the root entry has the firmware entry ...
          self.firmwareAction.setVisible(size == None and name == "")
          # ... and also the backup
-         self.backupAction.setVisible(size == None and name == "")
+         self.backupMenu.menuAction().setVisible(size == None and name == "")
          
          # size is "None" for directories
 

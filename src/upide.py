@@ -231,7 +231,7 @@ class Window(QMainWindow):
          self.backup_done(False)
          return
          
-      self.status(self.tr("Backing up: "+f.split("/")[-1]))
+      self.status(self.tr("Backing up: ")+f.split("/")[-1])
       self.board.cmd(Board.GET_FILE, self.on_backup_file, { "name": f, "size": node.size } )
       
       # user wants to make a full backup
@@ -314,7 +314,7 @@ class Window(QMainWindow):
       self.restore_file(f)
          
    def restore_file(self, f):
-      self.status(self.tr("Restoring: "+f.split("/")[-1]))
+      self.status(self.tr("Restoring: ")+f.split("/")[-1])
 
       # check if whole path exists
       path_parts = f.split("/")[:-1]
