@@ -120,8 +120,7 @@ class Examples(QObject):
                 elif name.lower().endswith(".py"):
                     self.imported.emit(name, str(data, 'utf-8'), ctx)
                 else:
-                    self.additional_file_loaded(ctx["dst"], data, ctx)
-
+                    self.additional_file_loaded(reply.property("name"), bytes(data), ctx)
             except Exception as e:
                 print("Examples network exception:", str(e))
         else:
