@@ -19,5 +19,14 @@
       <example name="ws2812_demo.py" description="Neopixel-Demo"/>   
       <example name="ws2812_rainbow.py" description="Neopixel-Regenbogen"/>   
     </section>
+
+    <section name="schaltelemente" description="Schaltelemente">
+      <example name="eingang.py" description="Eingang"/>
+      <example name="eingang_pullup.py" description="Eingang mit Pullup"/>
+      <example name="analogeingang.py" description="Analogeingang"/>
+      <example name="tastermatrix.py" description="Testenmatrix"/>
+      <example name="joystick_simple.py" description="Joystick einfach"/>
+      <example name="joystick.py" description="Joystick"/>
+    </section>
   </section>
 </examples>
