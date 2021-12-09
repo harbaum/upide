@@ -27,7 +27,8 @@ INDEX="index.xml"
 
 class Examples(QObject):
     loaded = pyqtSignal(dict)
-    imported = pyqtSignal(str, str)
+    imported = pyqtSignal(str, str, dict)
+    file_imported = pyqtSignal(str, bytes, dict)
     
     def __init__(self):
         super().__init__()        
@@ -59,6 +60,18 @@ class Examples(QObject):
                     "description": child.attrib["description"],
                     "local": isLocal
                 }
+                if "files" in child.attrib:
+                    for f in child.attrib["files"].split(";"):
+                        if len(f.split("=")) > 1:
+                            dst = f.split("=",1)[0]
+                            src = f.split("=",1)[1]
+                            if path != "": src = path + "/" + src
+                
+                            if not "files" in index[fullname]:
+                                index[fullname]["files"] = { }
+
+                            index[fullname]["files"][src] = dst                            
+
         return index
 
     def dumpIndex(self, index):
@@ -98,11 +111,16 @@ class Examples(QObject):
         err = reply.error()        
         if err == QNetworkReply.NoError:
             try:
-                data = str(reply.readAll(), 'utf-8')                
+                ctx = reply.property("context")
+                data = reply.readAll()
+                
                 if name == INDEX:
-                    self.handleIndex(et.fromstring(data), False)
+                    print("INDEX", str(data, 'utf-8'))
+                    self.handleIndex(et.fromstring(str(data, 'utf-8')), False)
+                elif name.lower().endswith(".py"):
+                    self.imported.emit(name, str(data, 'utf-8'), ctx)
                 else:
-                    self.imported.emit(name, data)
+                    self.additional_file_loaded(ctx["dst"], data, ctx)
 
             except Exception as e:
                 print("Examples network exception:", str(e))
@@ -116,14 +134,52 @@ class Examples(QObject):
         reply = self.manager.get(QNetworkRequest(QUrl(URL + PATH + INDEX)))
         reply.setProperty("name", INDEX)
 
-    def requestImport(self, name, src, local):
-        if local:        
+    def additional_file_loaded(self, name, data, ctx):
+        print("Additional example file loaded", name, ctx, len(data))
+
+        # data of extra file has successfully been imported and
+        # should now be written to the device
+        # data may be a string if a python file was loaded, bytes otherwise
+        if isinstance(data, str): data = data.encode("utf-8")
+        self.file_imported.emit(name, data, ctx)
+        
+    def import_additional_files(self, ctx):
+        # The examples python file has been imported and saved on the
+        # target. Now check if the example requires additional files
+        # like e.g. sound files for audio examples
+        
+        # no further files to import?
+        if not "files" in ctx or not ctx["files"]:
+            print("example import complete")
+            return
+
+        # pull next file to be imported
+        src, dst = ctx["files"].popitem()
+        
+        if ctx["local"]:        
             try:
-                with open(self.resource_path(src)) as f:
-                    self.imported.emit(name, f.read())
-            except:                
-                pass
+                # addtional files are loaded as binary unless
+                # they are python files
+                with open(self.resource_path(src),
+                          "r" if src.lower().endswith(".py") else "rb") as f:
+                    self.additional_file_loaded(dst, f.read(), ctx)
+            except Exception as e:
+                print("Exception when loading extra file:", str(e))
         else:
             reply = self.manager.get(QNetworkRequest(QUrl(URL + PATH + src)))
+            # unlike "name" in requestImport the dst is a full path as the
+            # file may be stored in a special location on flash
+            reply.setProperty("name", dst)
+            reply.setProperty("context", ctx)            
+        
+    def requestImport(self, name, ctx):
+        if ctx["local"]:        
+            try:
+                with open(self.resource_path(ctx["filename"])) as f:
+                    self.imported.emit(name, f.read(), ctx)
+            except Exception as e:
+                print("Example import exception:", str(e))
+        else:
+            reply = self.manager.get(QNetworkRequest(QUrl(URL + PATH + ctx["filename"])))
             reply.setProperty("name", name)            
-
+            reply.setProperty("context", ctx)            

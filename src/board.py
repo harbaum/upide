@@ -88,7 +88,7 @@ class BoardThread(QThread):
             self.board.queue.put( (Board.RESULT, True ) )       
          elif self.cmd_code == Board.GET_FILE:
             result = {
-               "code": self.board.getFile(self.parms["name"], self.file_progress),
+               "code": self.board.getFile(self.parms["name"], self.parms["binary"], self.file_progress),
                "name": self.parms["name"]
             }
             # forware error information for highlighting if present
@@ -181,7 +181,18 @@ class Serial(serial.Serial):
 
    def write(self, data):
       try:
-         return super().write(data)
+         # write in small chunks to avoid write timeout on bigger data
+         written = 0
+         while data and len(data) > 0:
+            if len(data) > 64:
+               written += super().write(data[:64])
+               data = data[64:]
+            else:
+               written += super().write(data)
+               data = None
+
+         return written
+         # return super().write(data)
       except serial.SerialException as e:
          print("Serial write exception", e)
          raise RuntimeError("Serial write failed")
@@ -377,7 +388,7 @@ class Board(QObject):
         
       return ast.literal_eval(result)
 
-   def getFile(self, name, progress_cb=None):
+   def getFile(self, name, binary, progress_cb=None):
       # transfer data "binhexlified" to make sure even binary
       # data can be passed without problems
       print("get file", name);
@@ -391,6 +402,11 @@ class Board(QObject):
       """.format(name)
         
       data = self.replDo(command, progress_cb)
+
+      # In binary mode just resturn the raw binary data. This is
+      # used for backup
+      if binary: return binascii.unhexlify(data)
+      
       return binascii.unhexlify(data).decode("utf-8")
    
    def putFile(self, name, data):
@@ -402,7 +418,7 @@ class Board(QObject):
       if size > 0:
          for i in range(0, size, 64):
             chunk = repr(data[i : i + min(64, size - i)])
-            command += "            f.write({0})\n".format(chunk)
+            command += '            f.write({0})\n'.format(chunk)
       else:
          command += "            pass\n"      
          

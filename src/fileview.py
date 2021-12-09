@@ -274,8 +274,9 @@ class FileView(QTreeView):
    rename = pyqtSignal(str, str)   
    firmware = pyqtSignal()
    host_import = pyqtSignal(str, str)
-   example_import = pyqtSignal(str, str, bool)
-   example_imported = pyqtSignal(str, str)
+   example_import = pyqtSignal(str, dict)
+   example_imported = pyqtSignal(str, str, dict)
+   example_file_imported = pyqtSignal(str, bytes, dict)
    selection_changed = pyqtSignal(str)
    backup = pyqtSignal()
    restore = pyqtSignal()
@@ -332,6 +333,7 @@ class FileView(QTreeView):
       self.examples = Examples()
       self.examples.loaded.connect(self.on_examples_loaded)
       self.examples.imported.connect(self.on_example_imported)
+      self.examples.file_imported.connect(self.on_example_file_imported)
       self.examples.scan()
 
    def get_file_size(self, name):
@@ -347,7 +349,10 @@ class FileView(QTreeView):
          return
 
       # import the example
-      self.example_import.emit(fullname, action.property("filename"), action.property("local"))
+      context = { "filename": action.property("filename"),
+                  "local":    action.property("local"),
+                  "files":    action.property("files") }
+      self.example_import.emit(fullname, context)
 
    def examplesInstall(self, menu, examples):
       for e in examples:
@@ -374,6 +379,7 @@ class FileView(QTreeView):
 
             action.setProperty("filename", e)
             action.setProperty("local", example["local"])
+            if "files" in example: action.setProperty("files", example["files"])
       
    def on_examples_loaded(self, examples):
       # integrate examples into context menu
@@ -384,12 +390,24 @@ class FileView(QTreeView):
       # add entries
       self.examplesInstall(self.examplesMenu, examples)
 
-   def on_example_imported(self, name, code):
-      self.example_imported.emit(name, code)
+   def on_example_imported(self, name, code, context):
+      # code/data has been imported and needs to be saved
+      self.example_imported.emit(name, code, context)
       
-   def requestExample(self, name, src, local):
-      return self.examples.requestImport(name, src, local)
+   def on_example_file_imported(self, name, code, context):
+      # example extra file has been imported and needs to be saved
+      self.example_file_imported.emit(name, code, context)
       
+   def example_file_saved(self, ctx):
+      # example extra file has been saved, continue with next file
+      self.examples.import_additional_files(ctx)
+      
+   def requestExample(self, name, prop):
+      return self.examples.requestImport(name, prop)
+
+   def example_import_additional_files(self, context):
+      self.examples.import_additional_files(context)
+   
    def sysname(self, name):
       self.rootname = name
       
@@ -461,11 +479,19 @@ class FileView(QTreeView):
          return
 
       # add a new row
-      self.addToModel(self.model(), (self.rootname + fullname).split("/"), [ name, None ])      
+      self.add_dir_entry(fullname)
       
       # and create the directory
       self.mkdir.emit(self.context_entry[0] + "/" + name)
+
+   def add_file_entry(self, name, size = -1):
+      # check if entry already exists
+      if not self.exists(name):
+         self.addToModel(self.model(), (self.rootname + name).split("/"), [ name.split("/")[-1], size ])      
       
+   def add_dir_entry(self, name):
+      self.add_file_entry(name, None)
+
    def on_context_new(self):
       name, ok = QInputDialog.getText(self, self.tr('New file'), self.tr('Enter new file name:'))
       if not ok: return
@@ -486,7 +512,7 @@ class FileView(QTreeView):
          return
 
       # add a new row
-      self.addToModel(self.model(), (self.rootname + fullname).split("/"), [ name, -1 ])      
+      self.add_file_entry(fullname)
       
       # and open an (empty) editor window
       self.open.emit(self.context_entry[0] + "/" + name, -1)

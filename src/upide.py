@@ -83,23 +83,33 @@ class Window(QMainWindow):
       if success:
          self.status(self.tr("Saved {}").format(self.code["name"]))
 
-         if self.code["new_file"]:
-            # add file to file view
-            self.fileview.add(self.code["name"], len(self.code["code"]))
+         # example extra files have the "no_edit" flag set since they
+         # are not supposed to be opened in the editor after being imported
+         if not self.code["no_edit"]:
+            if self.code["new_file"]:
+               # add file to file view
+               self.fileview.add(self.code["name"], len(self.code["code"]))
                 
-            # open a editor view for the new file
-            self.editors.new(self.code["name"], self.code["code"])
-         else:
-            # not a new file, so update existing file info
-            self.editors.saved(self.code["name"])
-            self.fileview.saved(self.code["name"], len(self.code["code"]))
-         
+               # open a editor view for the new file
+               self.editors.new(self.code["name"], self.code["code"])
+            else:
+               # not a new file, so update existing file info
+               self.editors.saved(self.code["name"])
+               self.fileview.saved(self.code["name"], len(self.code["code"]))
+
+         # something might have to happen after the file has been saved. E.g.
+         # another example file is to be downloaded and saved. This is handled
+         # in the callback
+         cb = self.code["callback"]
+         ctx = self.code["context"]
          self.code = None
+
+         if cb: cb(ctx)
       else:
          self.status(self.tr("Saving aborted with error"));
       
-   def on_save(self, name, code, new_file=False):
-      self.code = { "name": name, "code": code, "new_file": new_file }
+   def on_save(self, name, code, new_file=False, cb=None, ctx = None, no_edit = False):
+      self.code = { "name": name, "code": code, "new_file": new_file, "callback": cb, "context": ctx, "no_edit": no_edit }
       
       # User has requested to save the code he edited
       self.on_board_request(True)
@@ -176,17 +186,17 @@ class Window(QMainWindow):
          self.editors.new(name)
       else:
          if size >= 0:
-            # if size is > 0 this is an existing file, so load it
+            # if size is >= 0 this is an existing file, so load it
             self.on_board_request(True)
             self.console.set_button(None)
-            self.board.cmd(Board.GET_FILE, self.on_file, { "name": name, "size": size } )
+            self.board.cmd(Board.GET_FILE, self.on_file, { "name": name, "size": size, "binary": False } )
          else:
             # else it's a newly created file
             self.editors.new(name)
 
-   def backup_done(self, ok):
+   def backup_done(self, ok, msg = ""):
       if ok: self.status(self.tr("Backup successful"))
-      else:  self.status(self.tr("Backup failed"))
+      else:  self.status(self.tr("Backup failed: ") + msg)
       # re-enable UI     
       self.on_board_request(False)
       self.console.set_button(True)
@@ -198,7 +208,7 @@ class Window(QMainWindow):
    def on_backup_file(self, success, ctx):
       if not success:
          # backup failed
-         self.backup_done(False)
+         self.backup_done(False, "Board com failed")
          return
 
       try:
@@ -208,10 +218,10 @@ class Window(QMainWindow):
             name = name[1:]
          
          with self.zip.open(name, mode='w') as f:
-            f.write(ctx["code"].encode("utf-8"))
+            f.write(ctx["code"])
             f.close()
       except Exception as e:
-         self.backup_done(False)
+         self.backup_done(False, str(e))
          return
             
       # backup next file
@@ -228,11 +238,11 @@ class Window(QMainWindow):
       if not node:
          # problem getting file node
          print("ERROR getting node for", f)
-         self.backup_done(False)
+         self.backup_done(False, "No node")
          return
          
       self.status(self.tr("Backing up: ")+f.split("/")[-1])
-      self.board.cmd(Board.GET_FILE, self.on_backup_file, { "name": f, "size": node.size } )
+      self.board.cmd(Board.GET_FILE, self.on_backup_file, { "name": f, "size": node.size, "binary": True } )
       
       # user wants to make a full backup
    def on_backup(self):            
@@ -249,7 +259,7 @@ class Window(QMainWindow):
          try:
             self.zip = zipfile.ZipFile(fname, 'w')
          except Exception as e:
-            self.backup_done(False)
+            self.backup_done(False, str(e))
             return
 
          # start backup with first file
@@ -290,7 +300,7 @@ class Window(QMainWindow):
          
       return None
          
-   def restore_mkdir(self, name):
+   def mkdir(self, name):
       try:
          self.board.mkdir(name)
       except Exception as e:
@@ -299,8 +309,6 @@ class Window(QMainWindow):
       return True
 
    def on_restore_file(self, success):
-      print("restore ctx", success)
-
       if not success:
          self.restore_done(False)
          return
@@ -312,22 +320,34 @@ class Window(QMainWindow):
          return
 
       self.restore_file(f)
-         
-   def restore_file(self, f):
-      self.status(self.tr("Restoring: ")+f.split("/")[-1])
 
+   def mkpath(self, path):
+      # treat all paths as absolute
+      if path.startswith("/"):
+         path = path[1:]
+      
       # check if whole path exists
-      path_parts = f.split("/")[:-1]
+      path_parts = path.split("/")[:-1]
       if len(path_parts) > 0:
          # check if path already exists
          for i in range(len(path_parts)):
             check_path = "/" + "/".join(path_parts[:i+1])
             if not self.fileview.exists(check_path):
-               if not self.restore_mkdir(check_path):
-                  # failed to create directory. Abort restore
-                  self.restore_done(False)
-                  return
+               if self.mkdir(check_path):
+                  self.fileview.add_dir_entry(check_path)
+               else:
+                  return False
+               
+      return True      
+      
+   def restore_file(self, f):
+      self.status(self.tr("Restoring: ")+f.split("/")[-1])
 
+      if not self.mkpath(f):
+         # failed to create directory. Abort restore
+         self.restore_done(False)
+         return
+      
       # full path should now exist, so restore file      
       try:
          with self.zip.open(f, 'r') as infile:
@@ -380,12 +400,29 @@ class Window(QMainWindow):
       except Exception as e:
          self.on_error(None, str(e))
 
-   def on_example_imported(self, name, code):
-      self.on_save(name, code, True)
+   def on_example_saved(self, ctx = None):
+      # the example has been saved. next check if there are additional
+      # files that need to be imported for this example
+      self.fileview.example_import_additional_files(ctx)
          
-   def on_example(self, name, src, local):
+   def on_example_imported(self, name, code, ctx):
+      self.on_save(name, code, True, self.on_example_saved, ctx)
+
+   def on_example_file_saved(self, ctx = None):
+      print("example file saved", ctx)
+      self.fileview.example_file_saved(ctx)
+      
+   def on_example_file_imported(self, name, data, ctx):
+      # this is special as we might need to create parent
+      # directories while the example itself is just saved
+      # where the user wanted it to be
+      if self.mkpath(name):
+         self.fileview.add_file_entry(name, len(data))
+         self.on_save(name, data, True, self.on_example_file_saved, ctx, True )
+      
+   def on_example(self, name, ctx):
       # user has requested an example to be loaded
-      self.fileview.requestExample(name, src, local)
+      self.fileview.requestExample(name, ctx)
       
    def on_import(self, local, name):
       # load the file into memory
@@ -448,6 +485,7 @@ class Window(QMainWindow):
       self.fileview.host_import.connect(self.on_import)
       self.fileview.example_import.connect(self.on_example)
       self.fileview.example_imported.connect(self.on_example_imported)
+      self.fileview.example_file_imported.connect(self.on_example_file_imported)
       self.fileview.backup.connect(self.on_backup)
       self.fileview.restore.connect(self.on_restore)
       hsplitter.addWidget(self.fileview)
@@ -621,7 +659,7 @@ class Window(QMainWindow):
                self.on_board_request(True)
                self.console.set_button(None)
                self.board.cmd(Board.GET_FILE, self.on_file, {
-                  "name": filename, "size": size,
+                  "name": filename, "size": size, "binary": False,
                   "error": { "line": errline, "msg": "\n".join(lines[i:]) } } )
                  
          locstr = filename.split("/")[-1] + ", " + ",".join(loc[1:]).strip()+"\n"
