@@ -28,5 +28,12 @@
       <example name="joystick_simple.py" description="Joystick einfach"/>
       <example name="joystick.py" description="Joystick"/>
     </section>
+
+    <section name="tonerzeugung" description="Tonerzeugung">
+      <example name="melodie.py" description="Einfache Melodie (PWM)"/>
+      <example name="dac.py" description="Digital-Analog-Wandlung (DAC)" files="/snd/hallo_micropython_u8.raw=hallo_micropython_u8.raw"/>
+      <example name="i2s.py" description="Externer I²S-DAC" files="/snd/hallo_micropython_s16.raw=hallo_micropython_s16.raw"/>
+    </section>
+    
   </section>
 </examples>
