@@ -28,11 +28,11 @@ def ton(freq=0):
     # Ton einschalten mit gegebener Frequenz 
     # bzw. ausschalten, wenn Frequenz 0 ist
     global lautsprecher
+    lautsprecher.freq(freq)
     if freq == 0:
         lautsprecher.duty(0)
     else:
         # 50% an/aus-Verhältnis
-        lautsprecher.freq(freq)
         lautsprecher.duty(512)
 
 def init():
@@ -49,7 +49,7 @@ def init():
 
     # Pin 19 als Ton-Ausgang mit PWM-Fähigkeit, zunächst kein Ton
     lautsprecher = PWM(Pin(19, Pin.OUT))
-    lautsprecher.duty(0)
+    ton()
 
 def erweitere_sequenz():
     global sequenz, zustand, zeit
