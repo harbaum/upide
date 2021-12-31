@@ -17,12 +17,12 @@ sequenz = None
 zustand = None
 zeit    = None
 
-TONLAENGE = 250
-TON_PAUSE = 100
+TONLAENGE = 250    # Zeit in ms, die Ton gespielt wird
+TON_PAUSE = 100    # Zeit in ms zwischen Tönen
 
-BEDENKZEIT = 3000
+BEDENKZEIT = 3000  # Timeout für Tastendruck
 
-DEBUG = False
+DEBUG = False      # Hilfsausgaben an/aus
 
 def ton(freq=0):
     # Ton einschalten mit gegebener Frequenz 
@@ -197,7 +197,7 @@ try:
 
     while True:
         spielen()     # Spielfortschritt berechnen
-        time.sleep(.01)
+        sleep(.01)
 
 except Exception as e:
     sys.print_exception(e)
