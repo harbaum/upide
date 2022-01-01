@@ -24,16 +24,19 @@ BEDENKZEIT = 3000  # Timeout für Tastendruck
 
 DEBUG = False      # Hilfsausgaben an/aus
 
-def ton(freq=0):
+def ton(freq=None):
     # Ton einschalten mit gegebener Frequenz 
     # bzw. ausschalten, wenn Frequenz 0 ist
     global lautsprecher
-    if freq == 0:
-        lautsprecher.duty(0)
+    if not freq:
+        if lautsprecher[1] != None:
+            lautsprecher[1].deinit()   # PWM abschalten
+            lautsprecher[1] = None
     else:
-        # 50% an/aus-Verhältnis
-        lautsprecher.duty(512)
-        lautsprecher.freq(freq)
+        # PWM an Lautsprecherpin einschalten mit geg. Frequenz
+        lautsprecher[1] = PWM(lautsprecher[0])
+        lautsprecher[1].duty(512)    # 50% an/aus-Verhältnis
+        lautsprecher[1].freq(freq)
 
 def init():
     global leds, tasten, lautsprecher
@@ -47,11 +50,8 @@ def init():
     for t in range(4):
         tasten[t] = Pin(tasten[t], Pin.IN, Pin.PULL_UP)
 
-    # Pin 19 als Ton-Ausgang mit PWM-Fähigkeit, zunächst kein Ton
-    lautsprecher = PWM(Pin(19, Pin.OUT))
-    lautsprecher.duty(0)
-    lautsprecher.freq(0)
-    lautsprecher.duty(0)
+    # Pin 19 als Ton-Ausgang mit PWM-Fähigkeit, zunächst kein Ton    
+    lautsprecher = [ Pin(19, Pin.OUT), None ]
 
 def erweitere_sequenz():
     global sequenz, zustand, zeit
@@ -191,20 +191,11 @@ def start():
     sequenz = [ ]
     erweitere_sequenz()
         
-try:
-    init()            # Hardware einrichten
+init()            # Hardware einrichten
 
-    zustand = [ "warte auf start", 3 ]
-    zeit = ticks_ms()
+zustand = [ "warte auf start", 3 ]
+zeit = ticks_ms()
 
-    while True:
-        spielen()     # Spielfortschritt berechnen
-        sleep(.01)
-
-except Exception as e:
-    sys.print_exception(e)
-except:
-    print("Exception")
-
-# PWM bei Programmabbruch beenden
-lautsprecher.deinit()
+while True:
+    spielen()     # Spielfortschritt berechnen
+    sleep(.01)
