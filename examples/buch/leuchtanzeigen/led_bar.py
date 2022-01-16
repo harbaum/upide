@@ -10,16 +10,17 @@ led = [ ]
 for l in LEDS:
     led.append(Pin(l,Pin.OUT))
 
+# Alle Leuchtdioden aus
 for l in led:
-    l.value(1)
+    l.value(0)
 
 while True:
     # schalte alle LEDs nacheinander an
     for l in led:
-        l.value(0)
+        l.value(1)
         sleep_ms(100)
 
     # schalte alle LEDs nacheinander wieder aus
     for l in reversed(led):
-        l.value(1)      
+        l.value(0)      
         sleep_ms(100)
