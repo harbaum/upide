@@ -368,7 +368,7 @@ class Window(QMainWindow):
       fname = QFileDialog.getOpenFileName(self, self.tr('Import file'),'.',self.tr("Any file (*)"))[0]
       if fname:
          # check if the target file already exists
-         new_name = dir_name + "/" + fname.split("/")[-1]
+         new_name = dir_name + "/" + os.path.basename(fname)
          if self.fileview.exists(new_name):
             qm = QMessageBox()
             ret = qm.question(self,self.tr('Really overwrite?'),
