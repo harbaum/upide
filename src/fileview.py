@@ -280,6 +280,7 @@ class FileView(QTreeView):
    selection_changed = pyqtSignal(str)
    backup = pyqtSignal()
    restore = pyqtSignal()
+   file_import = pyqtSignal(str)
    
    def __init__(self):
       super().__init__()
@@ -307,6 +308,9 @@ class FileView(QTreeView):
       self.newDirAction = QAction(self.tr("Directory..."), self.newMenu);
       self.newDirAction.triggered.connect(self.on_context_new_dir)
       self.newMenu.addAction(self.newDirAction);
+      self.newImportAction = QAction(self.tr("Import from PC..."), self.newMenu);
+      self.newImportAction.triggered.connect(self.on_context_import)
+      self.newMenu.addAction(self.newImportAction);
       self.openAction = QAction(self.tr("Open"), self.contextMenu);
       self.openAction.setDisabled(True)
       self.openAction.triggered.connect(self.on_context_open)
@@ -517,6 +521,9 @@ class FileView(QTreeView):
       # and open an (empty) editor window
       self.open.emit(self.context_entry[0] + "/" + name, -1)
       
+   def on_context_import(self):
+      self.file_import.emit(self.context_entry[0])
+            
    def on_context_firmware(self):
       self.firmware.emit()
 
@@ -664,7 +671,11 @@ class FileView(QTreeView):
       if ret == qm.Yes:
          self.remove(self.context_entry[0])
          self.delete.emit(self.context_entry[0])
-      
+
+   def is_editable(self, name):
+      # files ending with .py, .html, .css, .txt or .json can be opened/edited
+      return name.split(".")[-1].lower() in [ "py", "html", "css", "txt", "json" ]
+         
    def on_context_menu(self, point):
       # column 0 is the file name
       index = self.indexAt(point).siblingAtColumn(FileView.COL_NAME)
@@ -690,10 +701,9 @@ class FileView(QTreeView):
          self.newMenu.menuAction().setVisible(size == None)
          if self.examplesMenu: self.examplesMenu.menuAction().setVisible(size == None)
 
-         # the open entry is visible for all regular files but only
-         # files ending with *.py can be opened
+         # the open entry is visible for all regular files but only some can be edited
          self.openAction.setVisible(size != None)
-         self.openAction.setEnabled(size != None and name.endswith(".py"))
+         self.openAction.setEnabled(size != None and self.is_editable(name))
 
          # delete is a little more complex you cannot delete
          # - the root directory
@@ -719,7 +729,7 @@ class FileView(QTreeView):
             size = index.siblingAtColumn(FileView.COL_SIZE).data(Qt.DisplayRole)
             if isinstance(size, int):
                name = index.model().path(index)
-               if name.endswith(".py"):
+               if self.is_editable(name):
                   self.open.emit(name, size)
                   
    def updateModel(self, model, name, new_name, new_size, parent = QModelIndex()):
@@ -851,14 +861,21 @@ class FileView(QTreeView):
          # print("mouse down on", self.eventNode(event))
          if self.isDraggable(event):
             self.dragNode = self.eventNode(event)
+
+            #drag = QDrag(self)
+            #mimeData = QMimeData()
+            #mimeData.setText("Inhalt!!!");
+            #drag.setMimeData(mimeData);
+            # drag->setPixmap(iconPixmap);
+            #dropAction = drag.exec()  # Qt.CopyAction
          else:
             self.dragNode = None
 
          self.dropNode = None
-         super().mousePressEvent(event)
+      super().mousePressEvent(event)
             
    def dragEnterEvent(self, event: QDragEnterEvent):
-      # print("dragEnterEvent()", event)
+      print("dragEnterEvent()", event)
       self.selectionModel().clear()
       if event.source() == self and self.dragNode is not None:
          super().dragEnterEvent(event)
@@ -867,7 +884,7 @@ class FileView(QTreeView):
          self.dropNode = None
          
    def dragMoveEvent(self, event):
-      # print("dragMoveEvent()", event)
+      print("dragMoveEvent()", event)
       if self.eventNode(event) != self.dropNode:
          self.dropNode = self.eventNode(event)
          self.selectionModel().clear()
@@ -877,7 +894,7 @@ class FileView(QTreeView):
                  QItemSelectionModel.Rows | QItemSelectionModel.Select)
 
    def dropEvent(self, event):
-      # print("dropEvent()", event)
+      print("dropEvent()", event)
 
       self.selectionModel().clear()
       if self.isDroppable(event):
@@ -901,10 +918,6 @@ class FileView(QTreeView):
                      self.message.emit(self.tr("A file with that name already exists"));
                      return
 
-                  if not fullname.lower().endswith(".py"):
-                     self.message.emit(self.tr("Unable to import non-python file."));
-                     return
-               
                   self.host_import.emit(src_name, fullname)
                   
          else:

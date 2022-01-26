@@ -83,19 +83,22 @@ class Window(QMainWindow):
       if success:
          self.status(self.tr("Saved {}").format(self.code["name"]))
 
+         if self.code["new_file"]:
+            # add file to file view
+            self.fileview.add(self.code["name"], len(self.code["code"]))
+         else:
+            # update existing info
+            self.fileview.saved(self.code["name"], len(self.code["code"]))
+               
          # example extra files have the "no_edit" flag set since they
          # are not supposed to be opened in the editor after being imported
          if not self.code["no_edit"]:
             if self.code["new_file"]:
-               # add file to file view
-               self.fileview.add(self.code["name"], len(self.code["code"]))
-                
                # open a editor view for the new file
                self.editors.new(self.code["name"], self.code["code"])
             else:
-               # not a new file, so update existing file info
-               self.editors.saved(self.code["name"])
-               self.fileview.saved(self.code["name"], len(self.code["code"]))
+               # update existing editor
+               self.editors.saved(self.code["name"], self.code["code"])
 
          # something might have to happen after the file has been saved. E.g.
          # another example file is to be downloaded and saved. This is handled
@@ -360,6 +363,22 @@ class Window(QMainWindow):
          self.restore_done(False)
          return
 
+      # user wants to import a file from PC
+   def on_file_import(self, dir_name):
+      fname = QFileDialog.getOpenFileName(self, self.tr('Import file'),'.',self.tr("Any file (*)"))[0]
+      if fname:
+         # check if the target file already exists
+         new_name = dir_name + "/" + fname.split("/")[-1]
+         if self.fileview.exists(new_name):
+            qm = QMessageBox()
+            ret = qm.question(self,self.tr('Really overwrite?'),
+                              self.tr("A file with that name already exists.")+
+                              "\n"+self.tr("Do you really want to overwrite it?"), qm.Yes | qm.No)
+            if ret == qm.No:
+               return
+         
+         self.on_import(fname, new_name)
+      
       # user wants to restore a full backup
    def on_restore(self):            
       # select a zip file to extract backup from
@@ -429,7 +448,12 @@ class Window(QMainWindow):
       try:
          with open(local) as f:
             code = f.read()
-            self.on_save(name, code, True)
+
+            # check if this file already exists
+            # check if fileview thinks this is something that can
+            # be opened in an editor. Set no_edit flag if not
+            self.on_save(name, code, not self.fileview.exists(name),
+                         no_edit = not self.fileview.is_editable(name))
       except:
          self.on_message(self.tr("Import failed"))
       
@@ -488,6 +512,7 @@ class Window(QMainWindow):
       self.fileview.example_file_imported.connect(self.on_example_file_imported)
       self.fileview.backup.connect(self.on_backup)
       self.fileview.restore.connect(self.on_restore)
+      self.fileview.file_import.connect(self.on_file_import)
       hsplitter.addWidget(self.fileview)
       hsplitter.setStretchFactor(0, 1)
 

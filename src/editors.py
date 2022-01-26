@@ -229,10 +229,15 @@ class Editors(QStackedWidget):
         # True=RUN, False=Stop or None
         self.tabs.set_button(state)
 
-    def saved(self, name):
+    def saved(self, name, code):
         tab = self.tabs.get_index_by_file(name)
         if tab is not None:
-            self.tabs.widget(tab).saved()      
+            self.tabs.widget(tab).saved(code)
+        else:
+            # there is no open editor for the saved file. This usually
+            # means at has been saved after being newly imported. So
+            # open a tab for it
+            self.new(name, code)
                         
     def isModified(self):
         return self.tabs.isModified()

@@ -227,15 +227,18 @@ class CodeEditor(QPlainTextEdit):
         font.setFixedPitch(True)
         self.setFont(font)
 
-        self.highlighter = PythonHighlighter(self.document())
+        # use syntax highlighter on python files
+        if self.isPython():
+            self.highlighter = PythonHighlighter(self.document())
 
         # overlay run button
-        self.btn_run = QPushButton(QIcon(self.resource_path("assets/editor_run.svg")), "", self)
-        self.btn_run.setIconSize(QSize(32,32));
-        self.btn_run.setFlat(True)
-        self.btn_run.resize(32, 32)
-        self.btn_run.setStyleSheet("background-color: rgba(255, 255, 255, 0);");
-        self.btn_run.pressed.connect(self.on_run)
+        if self.isPython():
+            self.btn_run = QPushButton(QIcon(self.resource_path("assets/editor_run.svg")), "", self)
+            self.btn_run.setIconSize(QSize(32,32));
+            self.btn_run.setFlat(True)
+            self.btn_run.resize(32, 32)
+            self.btn_run.setStyleSheet("background-color: rgba(255, 255, 255, 0);");
+            self.btn_run.pressed.connect(self.on_run)
         
         # overlay save button
         self.btn_save = QPushButton(QIcon(self.resource_path("assets/editor_save.svg")), "", self)
@@ -251,7 +254,8 @@ class CodeEditor(QPlainTextEdit):
 
         # some extra keyboard shortcuts
         QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self.on_save)
-        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.on_run)
+        if self.isPython():
+            QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.on_run)
 
         # start a timer to track modifications at a low rate of max 10Hz to
         # reduce work load a little bit
@@ -259,6 +263,9 @@ class CodeEditor(QPlainTextEdit):
         self.code_is_modified = False
         self.textChanged.connect(self.on_edit)
 
+    def isPython(self):
+        return self.name.split(".")[-1].lower() == "py"
+        
     def isModified(self):
         return self.code_is_modified
         
@@ -302,17 +309,20 @@ class CodeEditor(QPlainTextEdit):
         # True = run, False = stop, None = disabled
         self.button_mode = mode
         if mode == True:
-            self.btn_run.setHidden(False)
-            self.btn_run.setIcon(QIcon(self.resource_path("assets/editor_run.svg")))
-            self.btn_run.setToolTip(self.tr("Run this code") + " (CTRL-R)");
+            if self.isPython():
+                self.btn_run.setHidden(False)
+                self.btn_run.setIcon(QIcon(self.resource_path("assets/editor_run.svg")))
+                self.btn_run.setToolTip(self.tr("Run this code") + " (CTRL-R)");
             self.btn_save.setHidden(not self.checkModified())
         elif mode == False:
-            self.btn_run.setHidden(False)
-            self.btn_run.setIcon(QIcon(self.resource_path("assets/editor_stop.svg")))
-            self.btn_run.setToolTip(self.tr("Stop running code") + " (CTRL-R)");
+            if self.isPython():
+                self.btn_run.setHidden(False)
+                self.btn_run.setIcon(QIcon(self.resource_path("assets/editor_stop.svg")))
+                self.btn_run.setToolTip(self.tr("Stop running code") + " (CTRL-R)");
             self.btn_save.setHidden(True)  # cannot save while running
         else:
-            self.btn_run.setHidden(True)
+            if self.isPython():
+                self.btn_run.setHidden(True)
             self.btn_save.setHidden(True)
 
     def event(self, event):
@@ -344,7 +354,8 @@ class CodeEditor(QPlainTextEdit):
         return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
    
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Tab:
+        # for python programs the tab is converted to four spaces
+        if self.isPython() and event.key() == Qt.Key_Tab:
             self.textCursor().insertText(" " * (4 - self.textCursor().columnNumber() % 4))
             event.accept()
         else:
@@ -378,9 +389,13 @@ class CodeEditor(QPlainTextEdit):
     def resizeEvent(self, event):
         super().resizeEvent(event)
 
-        # relocate the run and save icons
-        self.btn_run.move(QPoint(self.width()-56, self.height()-56))
-        self.btn_save.move(QPoint(self.width()-100, self.height()-56))
+        # relocate the run and save icons. Put the save icon on the right
+        # for non-python files for which no run icon is being showed
+        if self.isPython():
+            self.btn_run.move(QPoint(self.width()-56, self.height()-56))
+            self.btn_save.move(QPoint(self.width()-100, self.height()-56))
+        else:
+            self.btn_save.move(QPoint(self.width()-56, self.height()-56))
         
         cr = self.contentsRect();
         self.lineNumberArea.setGeometry(QRect(cr.left(), cr.top(),
@@ -415,10 +430,17 @@ class CodeEditor(QPlainTextEdit):
     def rename(self, new):
         self.name = new
         
-    def saved(self):
-        # the current code has been saved. So it becomes the
-        # unmodified one
-        self.code = self.text()
+    def saved(self, code):
+        # the saved code may actually not be the one currently displayed
+        # in the editor. This e.g. happens if a file is imported from the
+        # PC which was already open in the editor
+        if code != self.text():
+            self.setCode(code)
+        else:
+            # the current code has been saved. So it becomes the
+            # unmodified one
+            self.code = self.text()
+            
         self.updateModifyState(False)
     
     def highlight(self, line, msg = None):
