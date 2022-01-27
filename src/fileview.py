@@ -281,6 +281,7 @@ class FileView(QTreeView):
    backup = pyqtSignal()
    restore = pyqtSignal()
    file_import = pyqtSignal(str)
+   file_export = pyqtSignal(str, int)
    
    def __init__(self):
       super().__init__()
@@ -323,6 +324,9 @@ class FileView(QTreeView):
       self.deleteAction.setDisabled(True)
       self.deleteAction.triggered.connect(self.on_context_delete)
       self.contextMenu.addAction(self.deleteAction)
+      self.exportAction = QAction(self.tr("Export to PC..."), self.newMenu);
+      self.exportAction.triggered.connect(self.on_context_export)
+      self.contextMenu.addAction(self.exportAction);
       
       self.setContextMenuPolicy(Qt.CustomContextMenu);
       self.customContextMenuRequested.connect(self.on_context_menu)
@@ -524,6 +528,9 @@ class FileView(QTreeView):
    def on_context_import(self):
       self.file_import.emit(self.context_entry[0])
             
+   def on_context_export(self):
+      self.file_export.emit(self.context_entry[0], self.context_entry[1])
+      
    def on_context_firmware(self):
       self.firmware.emit()
 
@@ -696,6 +703,9 @@ class FileView(QTreeView):
 
          # everything but the root dir, unsaved new files and boot.py can be renamed
          self.renameAction.setEnabled(name != "" and (size == None or size >= 0) and name != "/boot.py")
+
+         # all files can be exported
+         self.exportAction.setVisible(size != None and size >= 0)
          
          # new files can be created for directories
          self.newMenu.menuAction().setVisible(size == None)

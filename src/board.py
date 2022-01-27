@@ -93,6 +93,8 @@ class BoardThread(QThread):
             }
             # forware error information for highlighting if present
             if "error" in self.parms: result["error"] = self.parms["error"]
+            # and also the target filename when exporting
+            if "fname" in self.parms: result["fname"] = self.parms["fname"]
             self.board.queue.put( (Board.RESULT, True, result) )       
          elif self.cmd_code == Board.RUN:
             self.board.run(self.parms["code"], self.run_output)

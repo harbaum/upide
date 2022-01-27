@@ -378,7 +378,34 @@ class Window(QMainWindow):
                return
          
          self.on_import(fname, new_name)
-      
+
+   def on_export_file(self, success, result=None):
+      self.on_board_request(False)
+      self.console.set_button(True)
+      if success:
+         with open(result["fname"], mode='wb') as f:
+            f.write(result["code"])
+            f.close()
+            
+            self.status(self.tr("Exported {}").format(os.path.basename(result["fname"])))
+         
+      # user wants to export a file to PC
+   def on_file_export(self, name, size):
+      fname = QFileDialog.getSaveFileName(self, self.tr('Export file'),name.split("/")[-1],self.tr("Any file (*)"))[0]
+      if fname:
+         # if the file exists, check if it's a valid file as e.g. directories
+         # cannot be overwritten by regular files. This should actually never happen
+         # as QFileDialog should not have allowed the user to select anything but
+         # a valid file. Thus we just silently stop here
+         if os.path.exists(fname) and not os.path.isfile(fname): return
+         
+         print("save to", fname);
+
+         # start by loading the file into memory
+         self.on_board_request(True)
+         self.console.set_button(None)
+         self.board.cmd(Board.GET_FILE, self.on_export_file, { "name": name, "size": size, "binary": True, "fname": fname } )
+
       # user wants to restore a full backup
    def on_restore(self):            
       # select a zip file to extract backup from
@@ -513,6 +540,7 @@ class Window(QMainWindow):
       self.fileview.backup.connect(self.on_backup)
       self.fileview.restore.connect(self.on_restore)
       self.fileview.file_import.connect(self.on_file_import)
+      self.fileview.file_export.connect(self.on_file_export)
       hsplitter.addWidget(self.fileview)
       hsplitter.setStretchFactor(0, 1)
 
