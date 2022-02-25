@@ -1,0 +1,11 @@
+*~
+
+# Python
+__pycache__/
+*.pyc
+
+# dist
+build/
+dist/
+*.spec
+Makefile
