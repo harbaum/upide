@@ -16,6 +16,7 @@
 # Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+import sys, os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -141,6 +142,12 @@ class Editors(QStackedWidget):
         self.tabs.currentChanged.connect(self.on_current_changed)
         self.addWidget(self.tabs)
 
+        # Translate asset paths to useable format for PyInstaller
+    def resource_path(self, relative_path):
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+
     def splash(self, parent):
         vbox_w = QWidget(parent)
         vbox = QVBoxLayout()
@@ -148,6 +155,13 @@ class Editors(QStackedWidget):
 
         vbox.addStretch(2)
         
+        pic = QLabel(vbox_w)
+        pic.setPixmap(QPixmap(self.resource_path("assets/icon_64x64.png")))
+        pic.setAlignment(Qt.AlignCenter)
+        vbox.addWidget(pic)
+        
+        vbox.addStretch(1)
+    
         # title, version, copyright, ...
         title = QLabel("µPIDE", vbox_w)
         font = title.font()
@@ -157,7 +171,7 @@ class Editors(QStackedWidget):
         title.setAlignment(Qt.AlignCenter)
         vbox.addWidget(title)
 
-        version = QLabel("V1.0.5", vbox_w)
+        version = QLabel("V1.1.0", vbox_w)
         version.setAlignment(Qt.AlignCenter)
         vbox.addWidget(version)
         
@@ -167,7 +181,7 @@ class Editors(QStackedWidget):
 
         vbox.addStretch(1)
 
-        copyright = QLabel(self.tr("(c) 2021 Till Harbaum <till@harbaum.org>"), vbox_w)
+        copyright = QLabel(self.tr("© 2021-2022 Till Harbaum <till@harbaum.org>"), vbox_w)
         copyright.setAlignment(Qt.AlignCenter)
         vbox.addWidget(copyright)
 

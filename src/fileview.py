@@ -241,10 +241,6 @@ class FileModel(QAbstractItemModel):
       if node.path() == "":
          return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDropEnabled
          
-      # boot.py cannot be dragged
-      if node.path() == "/boot.py":
-         return Qt.ItemIsEnabled | Qt.ItemIsSelectable;
-      
       if not node.isDir():
          # regular files cannot be dropped upon
          return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled;
@@ -275,7 +271,7 @@ class FileView(QTreeView):
    firmware = pyqtSignal()
    host_import = pyqtSignal(str, str)
    example_import = pyqtSignal(str, dict)
-   example_imported = pyqtSignal(str, str, dict)
+   example_imported = pyqtSignal(str, bytes, dict)
    example_file_imported = pyqtSignal(str, bytes, dict)
    selection_changed = pyqtSignal(str)
    backup = pyqtSignal()
@@ -500,16 +496,53 @@ class FileView(QTreeView):
    def add_dir_entry(self, name):
       self.add_file_entry(name, None)
 
+   def fileInputDialog(self):
+      dlg = QDialog(self)
+      dlg.setWindowTitle(self.tr('New file'))
+      dlg.resize(300,1)
+      vbox = QVBoxLayout()
+      
+      vbox.addWidget(QLabel(self.tr('Enter new file name:')))
+      
+      hboxW = QWidget()
+      hbox = QHBoxLayout()
+      hbox.setContentsMargins(0,0,0,0)
+      hboxW.setLayout(hbox)
+
+      lineedit = QLineEdit()
+      hbox.addWidget(lineedit)
+      # create a dropdown list of supported file types
+      type_cbox = QComboBox()
+      for p in self.EDITABLE_TYPES:
+         type_cbox.addItem(p[1], p[0])
+         
+      hbox.addWidget(type_cbox)
+      vbox.addWidget(hboxW)
+      
+      button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, Qt.Horizontal, dlg )
+      button_box.accepted.connect(dlg.accept)
+      button_box.rejected.connect(dlg.reject)
+      vbox.addWidget(button_box)
+      
+      dlg.setLayout(vbox)
+
+      dlg.setWindowModality(Qt.ApplicationModal)
+      lineedit.setFocus()
+      retval = ( None, False )
+      if dlg.exec_() == QDialog.Accepted:
+         print(type_cbox.currentData(), type_cbox.currentIndex())
+         retval = ( lineedit.text() + "." + type_cbox.currentData(), True )
+         
+      dlg.deleteLater()
+      return retval
+    
    def on_context_new(self):
-      name, ok = QInputDialog.getText(self, self.tr('New file'), self.tr('Enter new file name:'))
+      name, ok = self.fileInputDialog()
       if not ok: return
 
       if not self.isValidFilename(name):
          self.message.emit(self.tr("The file name must not be empty and must not contain the characters \\,/,:,*,\",<,> or |"));
          return
-               
-      if not name.endswith(".py"):
-         name = name + ".py"
 
       # create full path name
       fullname = self.context_entry[0] + "/" + name
@@ -679,9 +712,13 @@ class FileView(QTreeView):
          self.remove(self.context_entry[0])
          self.delete.emit(self.context_entry[0])
 
+   # file types supported by editors
+   EDITABLE_TYPES = [
+      ( "py", "Python" ), ( "html", "HTML"), ("css", "CSS"), ("txt", "Text"), ("json", "JSON") ]
+         
    def is_editable(self, name):
       # files ending with .py, .html, .css, .txt or .json can be opened/edited
-      return name.split(".")[-1].lower() in [ "py", "html", "css", "txt", "json" ]
+      return name.split(".")[-1].lower() in ([x[0] for x in self.EDITABLE_TYPES])
          
    def on_context_menu(self, point):
       # column 0 is the file name
@@ -701,8 +738,8 @@ class FileView(QTreeView):
          
          # size is "None" for directories
 
-         # everything but the root dir, unsaved new files and boot.py can be renamed
-         self.renameAction.setEnabled(name != "" and (size == None or size >= 0) and name != "/boot.py")
+         # everything but the root dir and unsaved new files can be renamed
+         self.renameAction.setEnabled(name != "" and (size == None or size >= 0))
 
          # all files can be exported
          self.exportAction.setVisible(size != None and size >= 0)
@@ -718,13 +755,10 @@ class FileView(QTreeView):
          # delete is a little more complex you cannot delete
          # - the root directory
          # - directories which aren't empty
-         # - boot.py
          # - newly created yet unsaved files
          if size is None and (name == "" or self.findNode(name).childCount() > 0):
             self.deleteAction.setEnabled(False)
          elif size != None and size < 0:
-            self.deleteAction.setEnabled(False)
-         elif size is not None and name == "/boot.py":
             self.deleteAction.setEnabled(False)
          else:
             self.deleteAction.setEnabled(True)
@@ -840,8 +874,7 @@ class FileView(QTreeView):
       if node.size == -1:
          return False
       
-      # boot.py cannot be dragged
-      return node.path() != "/boot.py"
+      return True
    
    def isDroppable(self, event):
       node = self.eventNode(event)

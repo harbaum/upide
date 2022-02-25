@@ -254,6 +254,7 @@ class CodeEditor(QPlainTextEdit):
 
         # some extra keyboard shortcuts
         QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self.on_save)
+        QShortcut(QKeySequence("Ctrl+F"), self).activated.connect(self.on_search)
         if self.isPython():
             QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.on_run)
 
@@ -297,7 +298,9 @@ class CodeEditor(QPlainTextEdit):
         if m: self.highlight(None)        
             
     def setCode(self, code):
-        if code is not None:        
+        if code is not None:
+            # convert to text
+            code = code.decode("utf-8")
             # the editor works internally with \n only
             code = code.replace('\r', '')        
             self.code = code   # save code
@@ -335,6 +338,44 @@ class CodeEditor(QPlainTextEdit):
             return True
 
         return QPlainTextEdit.event(self, event)
+
+    def on_do_search(self):
+        pattern = self.searchedit.text()
+        if pattern and not self.find(pattern):
+            # nothing found, set cursor to begin of document and
+            # try again
+            textCursor = self.textCursor()
+            textCursor.movePosition(QTextCursor.Start)
+            self.setTextCursor(textCursor)
+            self.find(pattern)
+         
+    def on_search(self):
+        # open search (and replace) dialog
+        self.search_dialog = QDialog(self)
+        self.search_dialog.setWindowTitle(self.tr("Search"))
+
+        vbox = QVBoxLayout()
+
+        search_w = QWidget()
+        searchbox = QHBoxLayout()
+        self.searchedit = QLineEdit()
+        searchbox.addWidget(self.searchedit)
+        searchbut = QPushButton(self.tr("Search"))
+        searchbut.clicked.connect(self.on_do_search)
+        searchbox.addWidget(searchbut)
+        searchbox.setContentsMargins(0,0,0,0)
+        search_w.setLayout(searchbox)
+        
+        vbox.addWidget(search_w)
+        
+        button_box = QDialogButtonBox(QDialogButtonBox.Close,
+                            Qt.Horizontal, self.search_dialog)
+        button_box.clicked.connect(self.search_dialog.close)
+        vbox.addWidget(button_box)
+        
+        self.search_dialog.setLayout(vbox)
+        self.searchedit.setFocus()
+        self.search_dialog.exec_()
 
     def on_save(self):
         # only really emit this signal if the save button is enabled

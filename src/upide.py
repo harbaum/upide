@@ -77,12 +77,11 @@ class Window(QMainWindow):
       # Disable all file system interaction while busy
       self.fileview.disable(busy)      
    
-   def on_save_done(self, success = None):
+   def on_save_done(self, success, data = None):
       self.on_board_request(False)
       self.console.set_button(True)
       if success:
          self.status(self.tr("Saved {}").format(self.code["name"]))
-
          if self.code["new_file"]:
             # add file to file view
             self.fileview.add(self.code["name"], len(self.code["code"]))
@@ -126,7 +125,7 @@ class Window(QMainWindow):
       # and allow the console to react on key presses
       self.console.enable_input(True)
 
-   def on_run_done(self, success):
+   def on_run_done(self, success, data=None):
       # "run done" means the running program has been stopped
       # so a "stop" timeout may be pending. Cancel that as stop
       # was successful
@@ -174,6 +173,7 @@ class Window(QMainWindow):
    def on_file(self, success, result=None):
       self.on_board_request(False)
       self.console.set_button(True)
+      self.status()
       if success:
          self.editors.new(result["name"], result["code"])
          if "error" in result:
@@ -192,7 +192,7 @@ class Window(QMainWindow):
             # if size is >= 0 this is an existing file, so load it
             self.on_board_request(True)
             self.console.set_button(None)
-            self.board.cmd(Board.GET_FILE, self.on_file, { "name": name, "size": size, "binary": False } )
+            self.board.cmd(Board.GET_FILE, self.on_file, { "name": name, "size": size } )
          else:
             # else it's a newly created file
             self.editors.new(name)
@@ -245,7 +245,7 @@ class Window(QMainWindow):
          return
          
       self.status(self.tr("Backing up: ")+f.split("/")[-1])
-      self.board.cmd(Board.GET_FILE, self.on_backup_file, { "name": f, "size": node.size, "binary": True } )
+      self.board.cmd(Board.GET_FILE, self.on_backup_file, { "name": f, "size": node.size } )
       
       # user wants to make a full backup
    def on_backup(self):            
@@ -404,7 +404,7 @@ class Window(QMainWindow):
          # start by loading the file into memory
          self.on_board_request(True)
          self.console.set_button(None)
-         self.board.cmd(Board.GET_FILE, self.on_export_file, { "name": name, "size": size, "binary": True, "fname": fname } )
+         self.board.cmd(Board.GET_FILE, self.on_export_file, { "name": name, "size": size, "fname": fname } )
 
       # user wants to restore a full backup
    def on_restore(self):            
@@ -431,21 +431,28 @@ class Window(QMainWindow):
             
          self.restore_file(f)
             
+   def show_exception(self, e):
+      # this was an exception forwarded from the target 
+      if len(e.args) == 3 and e.args[0] == "exception":
+         self.on_error(None, e.args[2].decode("ascii"))
+      else:
+         self.on_error(None, str(e))
+         
       # user wants to create a new directory
    def on_mkdir(self, name):
       try:
          self.board.mkdir(name)
       except Exception as e:
-         self.on_error(None, str(e))
-      
+         self.show_exception(e)
+
    def on_delete(self, name):
       # close tab if present
       self.editors.close(name)
       try:
          self.board.rm(name)
       except Exception as e:
-         self.on_error(None, str(e))
-
+         self.show_exception(e)
+         
    def on_example_saved(self, ctx = None):
       # the example has been saved. next check if there are additional
       # files that need to be imported for this example
@@ -464,16 +471,19 @@ class Window(QMainWindow):
       # where the user wanted it to be
       if self.mkpath(name):
          self.fileview.add_file_entry(name, len(data))
-         self.on_save(name, data, True, self.on_example_file_saved, ctx, True )
+         self.on_save(name, data, not self.fileview.exists(name), self.on_example_file_saved, ctx, True )
       
    def on_example(self, name, ctx):
       # user has requested an example to be loaded
       self.fileview.requestExample(name, ctx)
       
    def on_import(self, local, name):
+      # open anything the editor won't handle as binary
+      mode = "r" if self.fileview.is_editable(name) else "rb"
+         
       # load the file into memory
       try:
-         with open(local) as f:
+         with open(local, mode) as f:
             code = f.read()
 
             # check if this file already exists
@@ -481,15 +491,15 @@ class Window(QMainWindow):
             # be opened in an editor. Set no_edit flag if not
             self.on_save(name, code, not self.fileview.exists(name),
                          no_edit = not self.fileview.is_editable(name))
-      except:
-         self.on_message(self.tr("Import failed"))
+      except Exception as e:
+         self.on_message(self.tr("Import failed:") + "\n\n" + str(e))
       
    def on_rename(self, old, new):
       self.editors.rename(old, new)
       try:
          self.board.rename(old, new)
       except Exception as e:
-         self.on_error(None, str(e))
+         self.show_exception(e)
 
    def on_message(self, msg):
       msgBox = QMessageBox(QMessageBox.Critical, self.tr("Error"), msg, parent=self)
@@ -587,7 +597,7 @@ class Window(QMainWindow):
       else:
          self.board.stop()
    
-   def status(self, str):
+   def status(self, str=""):
       self.statusBar().showMessage(str);      
 
    def on_listdir(self, success, files=None):
@@ -597,10 +607,10 @@ class Window(QMainWindow):
       if success:
          self.fileview.set(files)      
       
-   def on_version(self, success, version=None):
-      self.status(self.tr("{0} connected, MicroPython V{1} on {2}").format(self.board.getPort(), version[2], version[0]));
-      self.fileview.sysname(version[0])
-      self.sysname = version[0]
+   def on_version(self, success, version):
+      self.status(self.tr("{0} connected, MicroPython V{1} on {2}").format(self.board.getPort(), version['release'], version['nodename']));
+      self.fileview.sysname(version['nodename'])
+      self.sysname = version['nodename']
       self.on_board_request(False)
       self.console.set_button(True)
 
@@ -646,7 +656,7 @@ class Window(QMainWindow):
       if ret ==  QMessageBox.Cancel:
          self.close()
       
-   def on_scan_result(self, success):
+   def on_scan_result(self, success, port=None):
       self.status(self.tr("Search done"))
       self.on_board_request(False)
       self.console.set_button(True)
@@ -712,7 +722,7 @@ class Window(QMainWindow):
                self.on_board_request(True)
                self.console.set_button(None)
                self.board.cmd(Board.GET_FILE, self.on_file, {
-                  "name": filename, "size": size, "binary": False,
+                  "name": filename, "size": size,
                   "error": { "line": errline, "msg": "\n".join(lines[i:]) } } )
                  
          locstr = filename.split("/")[-1] + ", " + ",".join(loc[1:]).strip()+"\n"
@@ -793,13 +803,7 @@ class Window(QMainWindow):
       self.port = None
       self.port_dialog.close()
 
-   def port_lost(self):
-      # disable all board interaction
-      self.editors.closeAll()
-      self.fileview.set(None)
-      self.console.set_button(None)
-      self.status(self.tr("Connection to board lost"));
-      
+   def on_lost_timer(self):
       qm = QMessageBox()
       ret = qm.question(self, self.tr('Board lost'),
                         self.tr("The connection to the board has been lost!\n"
@@ -811,6 +815,23 @@ class Window(QMainWindow):
       else:
          # user doesn't want to reconnect. So there's not much we can do
          self.close()
+      
+   def port_lost(self):
+      # disable all board interaction
+      self.editors.closeAll()
+      self.fileview.set(None)
+      self.progress(False)
+      self.console.set_button(None)
+      self.console.clear()
+      self.status(self.tr("Connection to board lost"));
+      self.board.close()
+
+      # start timer for further processing so processes are stopped
+      # before and we don't recurse from one callback into the next etc
+      self.lost_timer = QTimer()
+      self.lost_timer.setSingleShot(True)
+      self.lost_timer.timeout.connect(self.on_lost_timer)
+      self.lost_timer.start(1000)
       
    def initUI(self):
       self.setWindowTitle("µPIDE - Micropython IDE")
@@ -858,6 +879,13 @@ if __name__ == '__main__':
    noscan = "noscan" in os.path.splitext(os.path.basename(sys.argv[0]))[0].lower()
 
    app = QApplication(sys.argv)
+   app_icon = QIcon()
+   app_icon.addFile(Window.resource_path('assets/icon_16x16.png'), QSize(16,16))
+   app_icon.addFile(Window.resource_path('assets/icon_24x24.png'), QSize(24,24))
+   app_icon.addFile(Window.resource_path('assets/icon_32x32.png'), QSize(32,32))
+   app_icon.addFile(Window.resource_path('assets/icon_48x48.png'), QSize(48,48))
+   app_icon.addFile(Window.resource_path('assets/icon_256x256.png'), QSize(256,256))
+   app.setWindowIcon(app_icon)
    
    tr = QTranslator()
    tr.load(QLocale.system().name(), Window.resource_path("assets/i18n"))

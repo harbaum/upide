@@ -27,7 +27,7 @@ INDEX="index.xml"
 
 class Examples(QObject):
     loaded = pyqtSignal(dict)
-    imported = pyqtSignal(str, str, dict)
+    imported = pyqtSignal(str, bytes, dict)
     file_imported = pyqtSignal(str, bytes, dict)
     
     def __init__(self):
@@ -115,10 +115,10 @@ class Examples(QObject):
                 data = reply.readAll()
                 
                 if name == INDEX:
-                    print("INDEX", str(data, 'utf-8'))
+                    # print("INDEX", str(data, 'utf-8'))
                     self.handleIndex(et.fromstring(str(data, 'utf-8')), False)
                 elif name.lower().endswith(".py"):
-                    self.imported.emit(name, str(data, 'utf-8'), ctx)
+                    self.imported.emit(name, bytes(data), ctx)
                 else:
                     self.additional_file_loaded(reply.property("name"), bytes(data), ctx)
             except Exception as e:
@@ -138,8 +138,6 @@ class Examples(QObject):
 
         # data of extra file has successfully been imported and
         # should now be written to the device
-        # data may be a string if a python file was loaded, bytes otherwise
-        if isinstance(data, str): data = data.encode("utf-8")
         self.file_imported.emit(name, data, ctx)
         
     def import_additional_files(self, ctx):
@@ -174,7 +172,7 @@ class Examples(QObject):
     def requestImport(self, name, ctx):
         if ctx["local"]:        
             try:
-                with open(self.resource_path(ctx["filename"])) as f:
+                with open(self.resource_path(ctx["filename"], "rb")) as f:
                     self.imported.emit(name, f.read(), ctx)
             except Exception as e:
                 print("Example import exception:", str(e))

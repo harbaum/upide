@@ -18,225 +18,23 @@
 
 from PyQt5.QtCore import *
 
-import serial
+import pyboard, serial, sys
 import serial.tools.list_ports
-import sys, time
+import time
 
-import textwrap
-import binascii
+import threading
+from queue import Queue
 import ast
 
-from queue import Queue
-
-# 1: CTRL-A -- on a blank line, enter raw REPL mode
-# 2: CTRL-B -- on a blank line, enter normal REPL mode
-# 3: CTRL-C -- interrupt a running program
-# 4: CTRL-D -- on a blank line, do a soft reset of the board
-# 5: CTRL-E -- on a blank line, enter paste mode
-
-class BoardThread(QThread):
-   def __init__(self, board, cmd_code, parms = None):
-      super().__init__()
-      self.board = board
-      self.board.cmd_code = cmd_code   # store a copy in board
-      self.cmd_code = cmd_code
-      self.parms = parms
-      self.len = 0
-      self.percent = 0
-
-   def send_status(self, msg):
-      self.board.queue.put( (Board.STATUS, msg))
-
-   def file_progress(self, b):
-      self.len += len(b)
-      
-      if self.parms["size"] == 0:
-         self.board.queue.put( (Board.PROGRESS, 100 ) )
-         return
-         
-      # 50 * ... because the file is being transferred in hex which
-      # doubles the number of bytes to be transferred
-      percent = 50 * self.len // self.parms["size"]
-      if self.percent != percent:
-         self.percent = percent
-         self.board.queue.put( (Board.PROGRESS, percent ) )
-      
-   def run_output(self, b):
-      self.board.queue.put( (Board.CONSOLE, b) )
-
-   def run(self):
-      result = None
-
-      try:
-         if self.cmd_code == Board.CONNECT:
-            print("Should connect", self.parms)
-            if not self.board.open(self.parms):
-               self.board.queue.put( (Board.RESULT, False) )
-            else:
-               self.board.queue.put( (Board.RESULT, True) )       
-         elif self.cmd_code == Board.SCAN:
-            self.board.detect(self.send_status)
-            self.board.queue.put( (Board.RESULT, True) )       
-         elif self.cmd_code == Board.GET_VERSION:
-            result = self.board.getVersion()
-            self.board.queue.put( (Board.RESULT, True, result) )       
-         elif self.cmd_code == Board.LISTDIR:
-            result = self.board.listDir()
-            self.board.queue.put( (Board.RESULT, True, result) )       
-         elif self.cmd_code == Board.PUT_FILE:
-            self.board.putFile(self.parms["name"], self.parms["code"])
-            self.board.queue.put( (Board.RESULT, True ) )       
-         elif self.cmd_code == Board.GET_FILE:
-            result = {
-               "code": self.board.getFile(self.parms["name"], self.parms["binary"], self.file_progress),
-               "name": self.parms["name"]
-            }
-            # forware error information for highlighting if present
-            if "error" in self.parms: result["error"] = self.parms["error"]
-            # and also the target filename when exporting
-            if "fname" in self.parms: result["fname"] = self.parms["fname"]
-            self.board.queue.put( (Board.RESULT, True, result) )       
-         elif self.cmd_code == Board.RUN:
-            self.board.run(self.parms["code"], self.run_output)
-            self.board.queue.put( (Board.RESULT, True ) )       
-         elif self.cmd_code == Board.REPL:
-            self.board.go_interactive()
-            self.board.queue.put( (Board.RESULT, True ) )       
-         else:
-            print("Unexpected command", self.cmd_code)
-            self.board.queue.put( (Board.RESULT, False, self.tr("Unexpected command") ))
-      except:
-         # report failure
-         print("Exception in BoardTread():", sys.exc_info())
-         self.board.queue.put( (Board.RESULT, False ))
-         
-         # report error in console
-         name = self.parms["name"] if self.cmd_code == Board.RUN else None
-         errmsg = sys.exc_info()[1]
-         if isinstance(errmsg, int) and len(sys.exc_info()) > 1:
-            errmsg = sys.exc_info()[2]
-         
-         print("Report:", str(errmsg))
-         self.board.queue.put( (Board.ERROR, name, str(errmsg)) )
-          
-         # actually the serial port may have been lost completely
-         # due to the board being unplugged or a board with built-in
-         # USB being reset. Test for lost board.
-         if self.board.serial:
-            try:
-               self.board.serial.inWaiting()
-            except:
-               # port seems to be lost
-               self.board.queue.put( (Board.LOST, ) )
-            
-      self.board.cmd_code = None
-      
-class Serial(serial.Serial):
-   def __init__(self, device):
-      super().__init__(device, 115200, interCharTimeout=1, write_timeout=5)
-      self._buffer = b""
-      self._interrupt = False
-
-   def interrupt(self):
-      self._interrupt = True
-      
-   def readUntil(self, timeout, seq=None, callback=None):
-      self._interrupt = False
-      
-      # there may already be data in the buffer which should go with
-      # the callback
-      if callback:
-         # the final marker may already be in the buffer as well
-         if seq is not None and seq in self._buffer:
-            callback(self._buffer[:self._buffer.find(seq)])         
-         else:
-            callback(self._buffer)
-      
-      # read until a given sequence is found or if a timeout is reached
-      start = time.time()
-      while not self._interrupt and (timeout == 0 or time.time() - start < timeout ) and (seq is None or not seq in self._buffer):
-         time.sleep(0.01)
-         data = self.poll()
-         
-         # feed everything read into callback (e.g. used for program print output
-         # while waiting for EOF         
-         if data is not None and callback is not None:
-            # WARNING: This really only works for single char seq as a longer sequence
-            # may be split over several data chunks and may not be detected. EOF is a
-            # single character, so this is fine here
-            if seq is not None and seq in data:
-               callback(data[:data.find(seq)])
-            else:
-               callback(data)
-
-      # check if serial was forcefully interrupted by user
-      if self._interrupt:
-         raise RuntimeError("Stop failed")
-               
-      # remove everything up to detected pattern from buffer
-      if seq is not None and seq in self._buffer:
-         data = self._buffer[:self._buffer.find(seq)]
-         self._buffer = self._buffer[self._buffer.find(seq)+len(seq):]
-         return ( True, data )
-
-      return ( False, None )
-
-   def write(self, data):
-      try:
-         # write in small chunks to avoid write timeout on bigger data
-         written = 0
-         while data and len(data) > 0:
-            if len(data) > 64:
-               written += super().write(data[:64])
-               data = data[64:]
-            else:
-               written += super().write(data)
-               data = None
-
-         return written
-         # return super().write(data)
-      except serial.SerialException as e:
-         print("Serial write exception", e)
-         raise RuntimeError("Serial write failed")
-
-      # an exception may also happen in the read. However, chances are
-      # high they'll happen here as the USB/serial port likely broke
-      # while the user wasn't communicating with the board. So the most
-      # likely case for a serial error is the first byte being written
-      # for a new command.
-   
-   def poll(self):
-      try:
-         # read all available data into the buffer
-         if self.inWaiting() > 0:
-            data = super().read(self.inWaiting())
-            print("RX:", data)
-            self._buffer = self._buffer + data
-            return data
-      except serial.SerialException as e:
-         print("Serial read exception", e)
-         raise RuntimeError("Serial read failed")
-      
-      return None         
-
-   # return a given number of bytes
-   def read(self, num):
-      while len(self._buffer) < num:
-         self.poll()
-
-      v = self._buffer[:num]
-      self._buffer = self._buffer[num:]
-      return v
-        
 class Board(QObject):
-   code_downloaded = pyqtSignal()    
-   console = pyqtSignal(bytes)
-   progress = pyqtSignal(int)
+   code_downloaded = pyqtSignal()  # callback when code has been downloaded but not yet run
+   console = pyqtSignal(bytes)     # data has arrived from console output
+   progress = pyqtSignal(int)      # control progress bar (can be <0 or 0..100)
    error = pyqtSignal(str, str)
    status = pyqtSignal(str)
    lost = pyqtSignal()
    interactive = pyqtSignal()
-
+   
    # commands
    SCAN = 1
    GET_VERSION = 2
@@ -245,389 +43,456 @@ class Board(QObject):
    PUT_FILE = 5
    RUN = 6
    REPL = 7
-   CONNECT = 8
-   
-   # message code used by the thread
-   CODE_DOWNLOADED = 1
-   RESULT = 2
-   STATUS = 3
-   PROGRESS = 4
-   CONSOLE = 5
-   ERROR = 6
-   LOST = 7
-            
+   CONNECT = 8    # on user request with noscan
+
    def __init__(self, parent=None):
       super().__init__(parent)
-
-      self.serial = None
-      self.cmd_code = None
-      self.thread = None
-      self.thread_running = False
+      self.board = None  # not connected yet
+      self.worker_thread = None
+      self.queue = Queue()
       self.interact = False
 
-      self.queue = Queue()
-      
-      # create a listener timer which frequently polls the
-      # queue to the worker threads for messages
+      # start a timer for frequent event queue polling
       self.timer = QTimer()
       self.timer.timeout.connect(self.on_timer)
-      self.timer.start(100)  # poll at 10 Hz
+      self.timer.start(20)  # poll at 50 Hz
+
+   def send_console(self, str):
+      self.queue.put( ( "console",  str ) )
+      
+   def send_status(self, msg):
+      self.queue.put( ( "status", msg ) )
+       
+   def send_progress(self, val):
+      self.queue.put( ( "progress", val ) )
+       
+   def send_result(self, success, res=None):       
+      self.queue.put( ( "result", ( success, res ) ) )
+      
+   def func_probe_all(self, ports):
+      for port in ports:
+         self.send_status(self.tr("Checking port {}").format(port.device))
+         res = self.probe(port.device)
+         if res:
+            self.board = res
+            self.send_result( True, res.serial.port )
+            return
+
+      # no board found at all
+      # self.send_status()
+      self.send_result(False)
+      
+   def probe(self, device):
+      # start a probe thread with timeout            
+      board = pyboard.Pyboard(device)
+
+      # Set a write timeout. This is needed during scan if
+      # we try to probe a device which would not accept any data.
+      board.serial.write_timeout = 1
+      # Set a read timeout. This is needed for most
+      # non-micropython devices during probe
+      board.serial.timeout = 1
+        
+      try:
+         board.enter_raw_repl()
+      except Exception as e:
+         print("1st probe error: "+str(e), "retrying...")
+
+         try:
+            board.enter_raw_repl()
+         except Exception as e:
+            print("2nd probe error: "+str(e))
+            
+            board.close()
+            return None
+
+      # print("repl done")
+      board.exit_raw_repl()
+      return board
+
+   def func_wrapper(self, *args):
+      try:
+         # args is a tuple of function and another tuple with its arguments
+         args[0](*args[1])
+      except Exception as e:
+         print("Exception", str(e))
+         
+         # something has failed. check if the serial connection is lost
+         try:
+            self.board.serial.inWaiting()
+         except:
+            # port seems to be lost
+            self.queue.put( ("lost",) )
+            return
+
+         if not str(e): e = "Unknown exception"
+         
+         # must have been something else. Just report it
+         self.queue.put( ("exception", ("", str(e) )))
+         self.send_result(False)         
+            
+   def do_in_thread(self, func, args=None):
+      """ run worker thread in the background to do the board
+      communication """
+      
+      # Check if thread is already active. This should
+      # never happen
+      if self.worker_thread:
+         raise Exception("Worker already running")
+
+      # start worker thread to do the actual job ...
+      self.worker_thread = threading.Thread(target=self.func_wrapper, args=(func,args if args else tuple()))
+
+      self.worker_thread.start()
       
    def on_timer(self):
-      # check if thread is still running
-      if self.thread:
-         if self.thread.isFinished():
-            self.thread = None
-            self.done()
-
-      # read messages from thread out of queue and convert them
-      # into qt signals
+      # frequently poll the worker queue for results
+      
       while not self.queue.empty():
          msg = self.queue.get()
-         
-         if msg[0] == Board.CONSOLE:
-            self.console.emit(msg[1])
-         elif msg[0] == Board.CODE_DOWNLOADED:
-            self.code_downloaded.emit()
-         elif msg[0] == Board.PROGRESS:
-            self.progress.emit(msg[1])
-         elif msg[0] == Board.ERROR:
-            self.error.emit(msg[1], msg[2])
-         elif msg[0] == Board.STATUS:
+
+         # message from worker thread to be displayed in the status bar
+         if msg[0] == "status":
             self.status.emit(msg[1])
-         elif msg[0] == Board.LOST:
-            self.lost.emit()
-         elif msg[0] == Board.RESULT:
-            # board command result is handled by command specific
-            # callback handlers
-            if self.result_cb is not None:
-               cb = self.result_cb
-               self.result_cb = None
-
-               # return bool success and optional some result value
-               if len(msg) == 2: cb(msg[1])
-               else:             cb(msg[1], msg[2])
-         else:
-            print("Unhandled message from thread:", msg)
+         
+         if msg[0] == "progress":
+            self.progress.emit(msg[1])
             
-   # start a board thread to run command in the background
-   def cmd(self, cmd, cb, parms = None):
-      print("Board", cmd, cb, parms)
-      self.result_cb = cb
-      self.thread = BoardThread(self, cmd, parms)
-      if cmd == Board.GET_FILE: self.progress.emit(0)
-      else:                     self.progress.emit(-1)
-      self.thread.start()
+         if msg[0] == "exception":
+            self.error.emit(msg[1][0], msg[1][1])
+            
+         if msg[0] == "console":
+            self.console.emit(msg[1])
 
-   def done(self):
-      print("thread done");
+         if msg[0] == "downloaded":
+            self.code_downloaded.emit()
+            
+         if msg[0] == "interactive":
+            self.interactive.emit()
+            
+         if msg[0] == "lost":
+            self.worker_thread = None
+            self.lost.emit()
+            
+         # check if the command has sent a result ...
+         if msg[0] == "result":
+            # invoke callback if present
+            self.worker_thread = None
+            if self.cb: self.cb(msg[1][0], msg[1][1])
+
+   def scan(self):
+      ports = serial.tools.list_ports.comports()
+      # probe all ports in background thread
+      self.do_in_thread(self.func_probe_all, ( ports, ))
       
-   def sendCtrl(self, code):
-      codes = { 'a': b'\x01', 'b': b'\x02', 'c': b'\x03',
-                'd': b'\x04', 'e': b'\x05' }
+   def reply_handle_line_ast(self, line = None):
+      if line != None:
+         line = line.replace('\r', '')
+         if line == "": return
         
-      if self.serial.write(b'\r'+codes[code]) != 2:
-         return False
+         self.result = ast.literal_eval(line)
+       
+   def reply_parser(self, data = None, line_parser = None):
+      # reply_parser collects data returned from micropython.
+      
+      # if the parser is called without any data at all then
+      # the buffer is to be flushed
+      if data is None:
+         self.reply_buffer = b''
+         self.result = None
+         return
 
-      time.sleep(0.1)
-      return True
+      # append data to buffer
+      self.reply_buffer += data
 
+      # check if data contains a complete line
+      if b'\n' in self.reply_buffer:            
+         line, self.reply_buffer = self.reply_buffer.split(b'\n', 1)
+         line_parser(line.decode("utf-8"))
+            
+      # x04 in buffer (should) means that this is the end of the message
+      if b'\x04' in self.reply_buffer:
+         line, self.reply_buffer = self.reply_buffer.split(b'\x04', 1)
+         if len(line): line_parser(line.decode("utf-8"))                
+         line_parser()
+
+   def reply_parser_ast(self, data = None):
+      self.reply_parser(data, self.reply_handle_line_ast)
+
+   def input(self, data):
+      # forward and keyboard input directly to the board
+      self.board.serial.write(data.encode("utf-8"))
+
+   def func_version(self):
+      # print a ast.eval parsable dict
+      self.func("import os\r"
+             "o = os.uname()\r"
+             "v = { 'sysname': o.sysname, 'nodename': o.nodename, "
+                   "'release': o.release, 'version': o.version, "
+                   "'machine': o.machine }\r"
+             "print(v)")
+
+   def version(self):
+      self.do_in_thread(self.func_version)
+
+   def func(self, cmd):
+      self.reply_parser()           # reset parser
+      self.board.enter_raw_repl()
+      self.board.exec_(cmd, data_consumer=self.reply_parser_ast)
+      self.board.exit_raw_repl()
+      self.send_result(True, self.result)
+      
+   def func_ls(self):
+      # recursively scan all files. The result should be a single line
+      # of parsable python, so it can be eval'uated on PC side
+      self.func(
+         "import uos\n"
+         "def list(d):\n"
+         " print('[',end='')\n"
+         " first=True\n"
+         " for f in uos.ilistdir(d if d else '/'):\n"
+         #  make sure we have a comma before anything but the first entry
+         "  if first: first=False\n"
+         "  else:     print(',',end='')\n"
+         "  print('(\"{}\",'.format(f[0]), end='')\n"
+         "  if f[1]&0x4000: list(d+'/'+f[0])\n"
+         "  else: print('{}'.format(f[3] if len(f)>3 else 0), end='')\n"
+         "  print(')', end='')\n"
+         " print(']',end='')\n"
+         "list('')\n"
+      )
+
+   def ls(self):
+      self.do_in_thread(self.func_ls)
+
+   def func_get(self, src, size, reply_parms, chunk_size=256):
+      self.reply_parser()           # reset parser
+      self.board.enter_raw_repl()
+
+      self.board.exec_("f=open('%s','rb')\nr=f.read" % src)
+      result = bytearray()
+      while True:
+         data = bytearray()
+         self.board.exec_("print(r(%u))" % chunk_size, data_consumer=lambda d: data.extend(d))
+         assert data.endswith(b"\r\n\x04")
+         try:
+            data = ast.literal_eval(str(data[:-3], "ascii"))
+            if not isinstance(data, bytes):
+               raise ValueError("Not bytes")
+         except (UnicodeError, ValueError) as e:
+            raise PyboardError("fs_get: Could not interpret received data: %s" % str(e))
+         if not data:
+            break
+         
+         result += data
+         self.send_progress(100 * len(result) // size)
+
+      self.board.exec_("f.close()")
+      
+      self.board.exit_raw_repl()
+      reply_parms["code"] = result   # add data read to reply
+      self.send_result(True, reply_parms )
+            
+   def get(self, name, size, reply_parms):
+      self.progress.emit(0)
+      self.status.emit(self.tr("Reading {}".format(name.split("/")[-1])))
+      self.do_in_thread(self.func_get, ( name, size, reply_parms, 1024 ) )
+       
+   def func_put(self, all_data, dest, chunk_size=256):
+      self.reply_parser()           # reset parser
+      self.board.enter_raw_repl()
+      size = len(all_data)
+      sent = 0
+      
+      self.board.exec_("f=open('%s','wb')\nw=f.write" % dest)
+      while True:
+         if all_data != None and len(all_data) > chunk_size:
+            data = all_data[0:chunk_size]
+            all_data = all_data[chunk_size:]
+         else:
+            data = all_data
+            all_data = None
+         
+         if not data: break
+         self.board.exec_("w(" + repr(data) + ")")
+         sent += len(data)
+         self.send_progress(100 * sent // size)
+      self.board.exec_("f.close()")
+
+      self.board.exit_raw_repl()
+      self.status.emit("")     # clear status 
+      self.send_result(True)   # TOOD: add parms
+       
+   def put(self, data, name):
+      self.progress.emit(0)
+      self.status.emit(self.tr("Writing {}".format(name.split("/")[-1])))
+      self.do_in_thread(self.func_put, ( data, name ))
+
+   def func_run(self, name, code):
+      self.reply_parser()           # reset parser
+      self.board.enter_raw_repl()
+      
+      self.board.exec_raw_no_follow(code)
+      self.queue.put( ( "downloaded", ) )
+
+      try:
+         ret, ret_err = self.board.follow(None, self.send_console)
+         if ret_err:
+            # device side reported an exception
+            self.queue.put( ( "exception", (name, ret_err.decode("utf-8")) ) )
+      except Exception as e:
+         # host side reported an exception
+         ret_err = str(e)
+         self.queue.put( ( "exception", (name, ret_err) ) )
+         
+      self.board.exit_raw_repl()
+      self.send_result(not ret_err, None)
+      
+   def run(self, name, code):
+      self.do_in_thread(self.func_run, ( name, code ))
+      
    def stop(self):
       if self.interact:
          # stop the repl process
          self.interact = False
       else:         
          # stop a (user) code by sending ctrl-c
-         self.sendCtrl('c')
-    
-   def run(self, cmd, cb = None):
-      result = self.replDo(cmd, cb)
-      # if the result is just a string, then everything is fine
-      if result is not None and isinstance(result, str):
-         return result.strip();
-
-      return None
+         self.board.serial.write(b"\r\x03")
 
    def forceStop(self):
-      self.serial.interrupt();
-   
-   def listDir(self):
-      # a file entry in unformatted flash looks like
-      # \xff\xff\xff\xff\xff\xff\xff\xff.\xff\xff\xff
+      self.board._interrupt = True
       
-      command  = """
-            import os
-            def listdir(path):
-                try:
-                    children = os.listdir(path)
-                except OSError:
-                    try:
-                        size = os.stat(path)[6]
-                        return size
-                    except:
-                        return -2
-                else:
-                    files = [ ]
-                    for child in children:
-                        # catch broken entries on unformatted pyboard
-                        if child.encode()[0] == 255:
-                            return -2
-
-                        if path == '/': path = ''
-                        files.append([ child, listdir(path + '/' + child)])
-                    return files
-
-            print(listdir("/"))
-        """
-
-      # entries returning a negative size are reported broken. This e.g. happens
-      # if the pyboard is not properly formatted
-      result = self.replDo(command)
-      print("DIR:", ast.literal_eval(result))
-
-      # check if the file system contains errors (-2)
-      # my pyboard did not contain a valid filesystem at delivery. This could have
-        
-      return ast.literal_eval(result)
-
-   def getFile(self, name, binary, progress_cb=None):
-      # transfer data "binhexlified" to make sure even binary
-      # data can be passed without problems
-      print("get file", name);
-      command  = """
-            import sys, ubinascii
-            with open('{0}', 'rb') as infile:
-                while True:
-                    result = infile.read(32)
-                    if result == b'': break
-                    sys.stdout.write(ubinascii.hexlify(result))
-      """.format(name)
-        
-      data = self.replDo(command, progress_cb)
-
-      # In binary mode just resturn the raw binary data. This is
-      # used for backup
-      if binary: return binascii.unhexlify(data)
+   def replDo(self, cmd):
+      self.board.enter_raw_repl()
+      self.board.exec_(cmd)
+      self.board.exit_raw_repl()
       
-      return binascii.unhexlify(data).decode("utf-8")
-   
-   def putFile(self, name, data):
-      command  = """
-        with open('{0}', 'wb') as f:\n""".format(name)
-
-      # data is "put" in chunks
-      size = len(data)
-      if size > 0:
-         for i in range(0, size, 64):
-            chunk = repr(data[i : i + min(64, size - i)])
-            command += '            f.write({0})\n'.format(chunk)
-      else:
-         command += "            pass\n"      
-         
-      print("command:", command)
-      self.replDo(command)
-
    def rm(self, filename):
       """Remove the specified file or directory."""
-      command = """
-        import os
-        try:
-            os.remove('{0}')
-        except:
-            os.rmdir('{0}')
-        """.format(filename)
-      self.replDo(command)
+      self.replDo( (
+        "import os\n"
+        "try:\n"
+        " os.remove('{0}')\n"
+        "except:\n"
+        " os.rmdir('{0}')\n").format(filename))
            
    def mkdir(self, filename):
       """Crete a directory."""
-      command = """
-        import os
-        os.mkdir('{0}')
-        """.format(filename)
-      self.replDo(command)
-           
+      self.replDo( "import os\nos.mkdir('{0}')\n".format(filename) )
+
    def rename(self, old, new):
-      print("board rename", old, new)
-      """Rename the specified file or directory."""
-      command = """
-        import os
-        try:
-          os.rename('{0}', '{1}')
-        except:
-          with open('{2}', 'rb') as src, open('{3}', 'wb') as dst:
-            while True:
-              buffer = src.read(32)
-              if not buffer: 
-                break
-              dst.write(buffer)
-          os.remove('{4}') 
-        """.format(old, new, old, new, old)
-      self.replDo(command)
-      
-   def getVersion(self):
-      result = self.replDo("import os\rfor i in os.uname(): print( i )")
-      if result is not None:
-         return result.splitlines()
-      
-      return [ self.tr("<unknown>"), "", "", "", "" ]
+      """Rename the specified file or directory. Copy it if renaming fails"""
+      self.replDo( (
+        "import os\n"
+        "try:\n" 
+        " os.rename('{0}', '{1}')\n" 
+        "except:\n" 
+        " with open('{2}', 'rb') as src, open('{3}', 'wb') as dst:\n" 
+        "  while True:\n" 
+        "   buffer = src.read(256)\n" 
+        "   if not buffer:\n" 
+        "    break\n" 
+        "   dst.write(buffer)\n" 
+        " os.remove('{4}')\n" ).format(old, new, old, new, old))
 
-   def replPrepare(self):
-      self.sendCtrl('a')
-      return self.serial.readUntil(1, b"CTRL-B to exit\r\n>")[0]
-   
-   def replDo(self, cmd, callback=None):
-      print("replDo", textwrap.dedent(cmd));
-        
-      if not self.replPrepare():
-         # repl could not be entered, try to ctrl-c
-         self.interrupt()
-         if not self.replPrepare():
-            raise RuntimeError(self.tr("Error: Board not responding to command!"))
-      
-      result = None
-
-      self.serial.write(textwrap.dedent(cmd).encode('utf-8'))
-
-      # cmd code has been sent by BoardThread
-      if self.cmd_code == Board.RUN:
-         print("downloaded")
-         self.queue.put( (Board.CODE_DOWNLOADED, ))
-            
-      # send ctrl-d and wait for "ok"
-      self.sendCtrl('d')
-      if self.serial.readUntil(1, b"OK")[0] == True:
-         # read until first EOF. This may take very long if the application
-         # is running. So we wait forever ...
-         result = self.serial.readUntil(0, b"\x04", callback)   # long timeout for many files
-         if result[0]:
-            result = result[1].decode('utf-8')
-
-            # expect error and second EOF
-            err = self.serial.readUntil(1,b"\x04")
-            if err[0] and len(err[1]):
-               self.sendCtrl('b')
-               raise RuntimeError(err[1].decode('utf-8').strip())
-         else:
-            result = None
-        
-      self.sendCtrl('b')
-      return result
-
-   def interrupt(self):
-      # send ctrl-c twice to get into a known state
-      if not self.sendCtrl('c'):
-         print("Writing ctrl-c failed")
-         return False            
-            
-      print("ctrl-c sent");
-      self.sendCtrl('c')
-      print("ctrl-c sent");
-
-      # try to find a prompt in reply
-      if not self.serial.readUntil(2, b">>> ")[0]:
-         print("No prompt")
-         return False            
-
-      return True
-   
-   def probe(self):
-      print("Probing", self.serial.port)
-
-      # stop any running program
-      if not self.interrupt():
-         return False
-
-      # try to enter repl 
-      if not self.replPrepare():
-         return False
-         
-      self.sendCtrl('b')
-      return True
-        
-   def open(self, device):
-      try:
-         print("trying to open", device)
-         self.serial = Serial(device)
-      except IOError:
-         print("failed to open", device);
-         self.serial = None
-         return False
-
-      # probe for uP
-      try:
-         if self.probe():
-            return True
-         else:
-            # self.sendCtrl('d')  # this resets the ftduino32 :-(
-            self.sendCtrl('b')
-
-            # retry once
-            if self.probe():
-               return True
-      except:
-         print("Exception when probing", sys.exc_info());
-        
-      self.serial.close()
-      self.serial = None
-      return None
-
-   def isConnected(self):
-      return self.serial is not None
-
-   def getPort(self):
-      if self.serial is None: return None
-      return self.serial.port
-
-   def getPorts(self):
-      return serial.tools.list_ports.comports()      
-   
-   def detect(self, cb=None):
-      print("Trying to auto detect");
-        
-      ports = serial.tools.list_ports.comports()
-      for port in ports:
-         print("Checking port", port)
-         if cb: cb(self.tr("Checking port {}").format(port.device))
-         if self.open(port.device):
-            return
-
-      print(self.tr("no board"))
-      raise RuntimeError(self.tr("No board found!"))
-
-   def input(self, data):
-      # forward and keyboard input directly to the board
-      if self.serial is not None:
-         self.serial.write(data.encode("utf-8"))
-   
-   def close(self):
-      if self.serial is not None:
-         self.serial.close()
-         self.serial = None
-
-      if self.thread:
-         print("waiting for thread to end")
-         while not self.thread.isFinished():
-            time.sleep(.1);
-
-   def on_interactive_output(self, msg):
-      self.queue.put( (Board.CONSOLE, msg ) )
-
-   def go_interactive(self):
+   def func_interactive(self):
       # try to interrupt the board
-      self.sendCtrl('c')
+      self.board.serial.write(b"\r\x03")      
+      time.sleep(0.1)
+      self.board.serial.read(self.board.serial.inWaiting())
       
-      # flush any input buffer
-      self.serial.readUntil(.1)
-      self.serial._buffer = b''
-      self.interact = True
+      self.board.serial.write(b"\r")
+      time.sleep(0.1)
+      self.board.serial.read(self.board.serial.inWaiting())
       
-      self.sendCtrl('b')
-      data = self.serial.readUntil(1, b"for more information.\r\n>>> ")
-      if data[0] == True:
-         self.interactive.emit()
-         self.on_interactive_output(data[1]+b"for more information.\r\n>>> " )
+      # Since µP 1.14 the LEGO spike does not respond with the
+      # "more information ..." message to CTRL-B. Earlier versions of its firmware did ...
+      self.board.serial.write(b"\x02")      
+      data = self.board.read_until(1, b"\r\n>>> ")
+      if data.endswith(b"\r\n>>> "):
+         self.interact = True
+         self.queue.put( ( "interactive", True ) )  # tell console that we are now interactive
+
+         # cut any leading newlines
+         while data.startswith(b"\r\n"):
+            data = data[2:]
+         
+         self.send_console(data)
+         
          while self.interact:
-            self.serial.readUntil(.1, None, self.on_interactive_output)
-            self.serial._buffer = b''
+            num = self.board.serial.inWaiting()
+            if num > 0:
+               self.send_console(self.board.serial.read(num))
+            time.sleep(0.01)
       else:
          raise RuntimeError(self.tr("Failed to enter repl"))
+
+      self.send_result(True)
+      
+   def start_interactive(self):
+      self.do_in_thread(self.func_interactive)
+
+   def func_connect(self, port):
+      self.board = self.probe(port)
+      self.send_result(self.board != None)
+      
+   def connect(self, port):
+      self.do_in_thread(self.func_connect, (port,))
+      
+   def cmd(self, cmd, cb, parms = None):
+      self.progress.emit(-1)
+
+      self.cb = cb   # save callback for later usage
+      
+      if cmd == Board.SCAN:
+         self.scan()
+      
+      elif cmd == Board.GET_VERSION:
+         self.version()
+
+      elif cmd == Board.LISTDIR:
+         self.ls()
+
+      elif cmd == Board.GET_FILE:
+         # all parms are returned with the callback so the receiving
+         # side knows what to do with it
+         self.get(parms["name"], parms["size"], parms)
+         
+      elif cmd == Board.PUT_FILE:
+         self.put(parms["code"], parms["name"])
+
+      elif cmd == Board.RUN:
+         self.run(parms["name"], parms["code"])
+
+      elif cmd == Board.REPL:
+         self.start_interactive()
+         
+      elif cmd == Board.CONNECT:
+         self.connect(parms)
+         
+   def getPort(self):
+      try:
+         port = self.board.serial.port
+      except:
+         port = "<unknown>"
+         
+      return port
+
+   def getPorts(self):
+      return serial.tools.list_ports.comports() 
+   
+   def close(self):
+      if self.interact:
+         self.interact = False
+         time.sleep(.1)
+         
+      # kill any running thread
+      if self.worker_thread:
+         try:
+            self.worker_thread.join(1)
+         except:
+            pass
+
+      if self.board:
+         self.board.close()
+         self.board = None
