@@ -34,8 +34,8 @@ class Serial(serial.Serial):
             return len(self._buffer)
         
         return super().inWaiting()
-      
-    def read(self, num=None):
+
+    def read(self, num):
         # check if buffer can already satisfy request
         if len(self._buffer) >= num:
             retval = self._buffer[:num]
@@ -55,11 +55,7 @@ class Serial(serial.Serial):
 
         # nah, still not enough data, append more even if
         # that might block ...
-        data = self._buffer
-        if num is None:
-            data += super().read()
-        else:            
-            data += super().read(num - len(self._buffer))
+        data = self._buffer + super().read(num - len(self._buffer))
 
         # we'll return all data read, so buffer is now empty
         self._buffer = b""     
