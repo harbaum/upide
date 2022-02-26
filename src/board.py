@@ -23,6 +23,7 @@ import serial.tools.list_ports
 import time
 
 import threading
+import binascii
 from queue import Queue
 import ast
 
@@ -79,7 +80,6 @@ class Board(QObject):
             return
 
       # no board found at all
-      # self.send_status()
       self.send_result(False)
       
    def probe(self, device):
@@ -280,7 +280,7 @@ class Board(QObject):
             if not isinstance(data, bytes):
                raise ValueError("Not bytes")
          except (UnicodeError, ValueError) as e:
-            raise PyboardError("fs_get: Could not interpret received data: %s" % str(e))
+            raise pyboard.PyboardError("fs_get: Could not interpret received data: %s" % str(e))
          if not data:
             break
          
@@ -292,11 +292,31 @@ class Board(QObject):
       self.board.exit_raw_repl()
       reply_parms["code"] = result   # add data read to reply
       self.send_result(True, reply_parms )
+      
+   def func_get_old(self, name, size, reply_parms):
+      self.reply_parser()           # reset parser
+      self.board.enter_raw_repl()
+      
+      # transfer data "binhexlified" to make sure even binary
+      # data can be passed without problems
+      print("get file", name);
+      command  = ("import sys, ubinascii\n"
+                  "with open('{0}', 'rb') as infile:\n"
+                  " while True:\n"
+                  "  result = infile.read(32)\n"
+                  "  if result == b'': break\n"
+                  "  sys.stdout.write(ubinascii.hexlify(result))\n").format(name)
+        
+      data = self.board.exec_(command)
+      self.board.exit_raw_repl()
+   
+      reply_parms["code"] = binascii.unhexlify(data)
+      self.send_result(True, reply_parms )
             
    def get(self, name, size, reply_parms):
       self.progress.emit(0)
       self.status.emit(self.tr("Reading {}".format(name.split("/")[-1])))
-      self.do_in_thread(self.func_get, ( name, size, reply_parms, 1024 ) )
+      self.do_in_thread(self.func_get, ( name, size, reply_parms ) )
        
    def func_put(self, all_data, dest, chunk_size=256):
       self.reply_parser()           # reset parser

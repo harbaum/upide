@@ -265,7 +265,7 @@ class Pyboard:
             # device looks like an IP address
             self.serial = TelnetToSerial(device, user, password, read_timeout=10)
         else:
-            import serial
+            import buffered_serial as serial
 
             # Set options, and exclusive if pyserial supports it
             serial_kwargs = {"baudrate": baudrate, "interCharTimeout": 1}
