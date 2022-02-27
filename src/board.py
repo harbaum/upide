@@ -119,7 +119,9 @@ class Board(QObject):
          
          # something has failed. check if the serial connection is lost
          try:
-            self.board.serial.inWaiting()
+            # make sure we call the super class to trigger
+            # hardware problems
+            self.board.serial.super().inWaiting()
          except:
             # port seems to be lost
             self.queue.put( ("lost",) )
