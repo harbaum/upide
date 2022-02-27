@@ -35,6 +35,12 @@
       <example name="i2s.py" description="Externer I²S-DAC" files="/snd/hallo_micropython_s16.raw=hallo_micropython_s16.raw"/>
     </section>
     
+    <section name="motoren" description="Motoren">
+      <example name="dc_motor.py" description="Gleichspannungsmotor"/>
+      <example name="Schrittmotor.py" description="Schrittmotor"/>
+      <example name="Servo.py" description="Servomotor"/>
+    </section>
+    
     <section name="modelle" description="Modelle">
       <example name="ampel.py" description="Einfache Ampel"/>
       <example name="ampel_za.py" description="Ampel mit Zustandsautomat"/>
@@ -42,6 +48,5 @@
       <example name="Senso_test.py" description="Senso Hardware-Test"/>
       <example name="Senso.py" description="Senso Spiel"/>
     </section>
-    
   </section>
 </examples>
