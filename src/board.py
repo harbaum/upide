@@ -519,7 +519,7 @@ class Board(QObject):
       # kill any running thread
       if self.worker_thread:
          try:
-            self.worker_thread.join(1)
+            self.worker_thread.join(10)
          except:
             pass
 
