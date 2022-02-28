@@ -149,7 +149,8 @@ class Board(QObject):
       
    def on_timer(self):
       # frequently poll the worker queue for results
-      
+
+      console_data = b""
       while not self.queue.empty():
          msg = self.queue.get()
 
@@ -164,7 +165,10 @@ class Board(QObject):
             self.error.emit(msg[1][0], msg[1][1])
             
          if msg[0] == "console":
-            self.console.emit(msg[1])
+            # console output may happen pretty fast. Writing single bytes
+            # to the output will slow things down pretty much. So we collect data
+            # and return the whole message
+            console_data += msg[1]
 
          if msg[0] == "downloaded":
             self.code_downloaded.emit()
@@ -181,6 +185,10 @@ class Board(QObject):
             # invoke callback if present
             self.worker_thread = None
             if self.cb: self.cb(msg[1][0], msg[1][1])
+
+      # forward accumulated serial data to the console
+      if console_data:
+         self.console.emit(console_data)
 
    def scan(self):
       ports = serial.tools.list_ports.comports()
