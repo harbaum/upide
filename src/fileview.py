@@ -530,7 +530,6 @@ class FileView(QTreeView):
       lineedit.setFocus()
       retval = ( None, False )
       if dlg.exec_() == QDialog.Accepted:
-         print(type_cbox.currentData(), type_cbox.currentIndex())
          retval = ( lineedit.text() + "." + type_cbox.currentData(), True )
          
       dlg.deleteLater()

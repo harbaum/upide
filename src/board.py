@@ -162,12 +162,18 @@ class Board(QObject):
             self.progress.emit(msg[1])
             
          if msg[0] == "exception":
+            # output pending console data, so it isn't delayed
+            # after the exception output
+            if console_data:
+               self.console.emit(console_data)
+               console_data = b""
+            
             self.error.emit(msg[1][0], msg[1][1])
             
          if msg[0] == "console":
             # console output may happen pretty fast. Writing single bytes
-            # to the output will slow things down pretty much. So we collect data
-            # and return the whole message
+            # to the output will slow things down pretty much. So we
+            # collect data and return the whole message.
             console_data += msg[1]
 
          if msg[0] == "downloaded":

@@ -30,10 +30,10 @@ from esp_installer import EspInstaller
 import zipfile
 
 class Window(QMainWindow):
-   def __init__(self, app, noscan):
+   def __init__(self, app, flags):
       super(Window, self).__init__()
 
-      self.noscan = noscan
+      self.flags = flags
       self.initUI()
       app.aboutToQuit.connect(self.on_exit)
       self.sysname = None
@@ -865,18 +865,27 @@ class Window(QMainWindow):
       self.show()
 
       # scan if the user isn't suppressing this
-      if not self.noscan:      
-         self.on_board_request(True)
-         self.board.cmd(Board.SCAN, self.on_scan_result)
-      else:
+      if "noscan" in self.flags:
          # ask user for port
          self.timer = QTimer(self)
          self.timer.singleShot(100, self.open_port_dialog)
-
+      #if "pybricks_ble" in self.flags:
+      #   import pybricks_ble
+      #   self.pybricks = pybricks_ble.Pybricks()
+      else:
+         self.on_board_request(True)
+         self.board.cmd(Board.SCAN, self.on_scan_result)
+    
 if __name__ == '__main__':
    # get own name. If name contains "noscan" then don't do
    # a automatic scan but ask for a port instead
-   noscan = "noscan" in os.path.splitext(os.path.basename(sys.argv[0]))[0].lower()
+   flags = [ ]
+   if "noscan" in os.path.splitext(os.path.basename(sys.argv[0]))[0].lower():
+      flags.append("noscan")
+
+   # pybricks is too limited to support it in uPIDE. It has no os modules ...
+   # if "pybricks_ble" in os.path.splitext(os.path.basename(sys.argv[0]))[0].lower():
+   #   flags.append("pybricks_ble")
 
    app = QApplication(sys.argv)
    app_icon = QIcon()
@@ -891,5 +900,5 @@ if __name__ == '__main__':
    tr.load(QLocale.system().name(), Window.resource_path("assets/i18n"))
    app.installTranslator(tr)
    
-   a = Window(app, noscan)
+   a = Window(app, flags)
    sys.exit(app.exec_())
