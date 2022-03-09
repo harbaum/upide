@@ -83,8 +83,11 @@ class Board(QObject):
       self.send_result(False)
       
    def probe(self, device):
-      # start a probe thread with timeout            
-      board = pyboard.Pyboard(device)
+      try:
+         # start a probe thread with timeout            
+         board = pyboard.Pyboard(device)
+      except:
+         return None
 
       # Set a write timeout. This is needed during scan if
       # we try to probe a device which would not accept any data.
