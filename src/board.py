@@ -99,17 +99,12 @@ class Board(QObject):
       try:
          board.enter_raw_repl()
       except Exception as e:
-         print("1st probe error: "+str(e), "retrying...")
-
          try:
             board.enter_raw_repl()
          except Exception as e:
-            print("2nd probe error: "+str(e))
-            
             board.close()
             return None
 
-      # print("repl done")
       board.exit_raw_repl()
       return board
 
@@ -318,7 +313,6 @@ class Board(QObject):
       
       # transfer data "binhexlified" to make sure even binary
       # data can be passed without problems
-      print("get file", name);
       command  = ("import sys, ubinascii\n"
                   "with open('{0}', 'rb') as infile:\n"
                   " while True:\n"
@@ -373,19 +367,27 @@ class Board(QObject):
       
       self.board.exec_raw_no_follow(code)
       self.queue.put( ( "downloaded", ) )
-
+      report_exception = None
+      
       try:
          ret, ret_err = self.board.follow(None, self.send_console)
-         if ret_err:
-            # device side reported an exception
-            self.queue.put( ( "exception", (name, ret_err.decode("utf-8")) ) )
+         # device side reported an exception
+         if ret_err: report_exception = ret_err.decode("utf-8")
       except Exception as e:
          # host side reported an exception
          ret_err = str(e)
-         self.queue.put( ( "exception", (name, ret_err) ) )
+         self.queue.put( ( "exception", (name, "Internal exception:\n" + ret_err) ) )
          
       self.board.exit_raw_repl()
       self.send_result(not ret_err, None)
+
+      # report a device side exception _after_ the program has stopped
+      # running as highlighting the exception in the editor may require
+      # the source file to be downloaded from the target which in turn
+      # is not possible while the thread dealing with the code execution
+      # is still running
+      if report_exception:
+         self.queue.put( ( "exception", (name, report_exception) ) )
       
    def run(self, name, code):
       self.do_in_thread(self.func_run, ( name, code ))

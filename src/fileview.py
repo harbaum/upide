@@ -140,7 +140,6 @@ class FileModel(QAbstractItemModel):
          return index.internalPointer()      
    
    def insertRows(self, row, count, _parent=QModelIndex()):
-      # print("insertRows()", row, count)
       self.beginInsertRows(_parent, row, row+count-1)
       for i in range(count):
          self.getNode(_parent).insertChild(row+i, FileNode(None) )
@@ -148,7 +147,6 @@ class FileModel(QAbstractItemModel):
       return True
    
    def removeRows(self, row, count, _parent=QModelIndex()):
-      # print("removeRows()", row, count)
       self.beginRemoveRows(_parent, row, row+count-1);
       for i in range(count):
          self.getNode(_parent).removeChild(row+i)
@@ -917,7 +915,7 @@ class FileView(QTreeView):
       super().mousePressEvent(event)
             
    def dragEnterEvent(self, event: QDragEnterEvent):
-      print("dragEnterEvent()", event)
+      # print("dragEnterEvent()", event)
       self.selectionModel().clear()
       if event.source() == self and self.dragNode is not None:
          super().dragEnterEvent(event)
@@ -926,7 +924,7 @@ class FileView(QTreeView):
          self.dropNode = None
          
    def dragMoveEvent(self, event):
-      print("dragMoveEvent()", event)
+      # print("dragMoveEvent()", event)
       if self.eventNode(event) != self.dropNode:
          self.dropNode = self.eventNode(event)
          self.selectionModel().clear()
@@ -936,7 +934,7 @@ class FileView(QTreeView):
                  QItemSelectionModel.Rows | QItemSelectionModel.Select)
 
    def dropEvent(self, event):
-      print("dropEvent()", event)
+      # print("dropEvent()", event)
 
       self.selectionModel().clear()
       if self.isDroppable(event):

@@ -340,7 +340,6 @@ class Pyboard:
         if soft_reset:
             data = self.read_until(1, b"raw REPL; CTRL-B to exit\r\n>", timeout=1)
             if not data.endswith(b"raw REPL; CTRL-B to exit\r\n>"):
-                print(data)
                 raise PyboardError("could not enter raw repl")
 
             self.serial.write(b"\x04")  # ctrl-D: soft reset

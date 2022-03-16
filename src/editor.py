@@ -503,12 +503,17 @@ class CodeEditor(QPlainTextEdit):
         if msg:
             # setToolTip does not work. So we store the error and handle it explicitely
             # selection.format.setToolTip(msg)
-            self.error = { "line": line, "msg": msg }        
+            self.error = { "line": line, "msg": msg.strip() }
 
         selection.cursor = self.textCursor()
         selection.cursor.clearSelection()
         selection.cursor.setPosition(blockPos)
         selection.cursor.select(QTextCursor.LineUnderCursor);
-        selection.cursor.movePosition(QTextCursor.Right, QTextCursor.KeepAnchor) 
-        
+        selection.cursor.movePosition(QTextCursor.Right, QTextCursor.KeepAnchor)
+
+        # and scroll to error position
+        cursor = self.textCursor()
+        cursor.setPosition(blockPos)
+        self.setTextCursor(cursor)
+
         self.setExtraSelections([selection])

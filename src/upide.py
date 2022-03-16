@@ -495,12 +495,22 @@ class Window(QMainWindow):
          self.on_message(self.tr("Import failed:") + "\n\n" + str(e))
       
    def on_rename(self, old, new):
-      self.editors.rename(old, new)
       try:
          self.board.rename(old, new)
+         self.editors.rename(old, new)
       except Exception as e:
          self.show_exception(e)
 
+         # if the rename failed then the internal file tree may now be
+         # out of sync, so we reload it
+         self.select_file = old
+         self.board.cmd(Board.LISTDIR, self.on_rename_listdir)
+
+   def on_rename_listdir(self, success, files=None):
+      self.on_listdir(success, files)
+      # make source file visible again
+      self.fileview.select(self.select_file)
+      
    def on_message(self, msg):
       msgBox = QMessageBox(QMessageBox.Critical, self.tr("Error"), msg, parent=self)
       msgBox.exec_()
@@ -715,7 +725,7 @@ class Window(QMainWindow):
          if filename == "<stdin>": filename = name
 
          # try to highlight. If that fails since e.g. the file is not loaded
-         # in editor yet, then try to laod it
+         # in editor yet, then try to load it
          if not self.editors.highlight(filename, errline, "\n".join(lines[i:])):
             size = self.fileview.get_file_size(filename)
             if size is not None and size > 0:
@@ -724,7 +734,11 @@ class Window(QMainWindow):
                self.board.cmd(Board.GET_FILE, self.on_file, {
                   "name": filename, "size": size,
                   "error": { "line": errline, "msg": "\n".join(lines[i:]) } } )
-                 
+
+         # cut the "in <module>" if present. Since the line in question is highlighted,
+         # the "in <module>" will not give any additional information
+         if loc[2].strip() == "in <module>": loc = loc[:2]
+               
          locstr = filename.split("/")[-1] + ", " + ",".join(loc[1:]).strip()+"\n"
          self.console.append(locstr, color="darkred")
          self.console.append("\n".join(lines[i:]), color="darkred")
