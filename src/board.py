@@ -234,8 +234,14 @@ class Board(QObject):
       self.reply_parser(data, self.reply_handle_line_ast)
 
    def input(self, data):
-      # forward and keyboard input directly to the board
-      self.board.serial.write(data.encode("utf-8"))
+      try:
+         # forward and keyboard input directly to the board
+         self.board.serial.write(data.encode("utf-8"))
+      except:
+         # especially ACM based devices may not accept data
+         # anytime
+         print("input failed")
+         pass
 
    def func_version(self):
       # print a ast.eval parsable dict
@@ -396,9 +402,12 @@ class Board(QObject):
       if self.interact:
          # stop the repl process
          self.interact = False
-      else:         
-         # stop a (user) code by sending ctrl-c
-         self.board.serial.write(b"\r\x03")
+      else:
+         try:
+            # stop a (user) code by sending ctrl-c
+            self.board.serial.write(b"\r\x03")
+         except:
+            pass
 
    def forceStop(self):
       self.board._interrupt = True
