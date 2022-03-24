@@ -3,6 +3,11 @@
   <section name="pyboard" description="PyBoard">
     <example name="leds.py" description="Running led lights"/>      
   </section>
+  
+  <section name="spike" description="LEGO Spike Hub">
+    <example name="io_demo.py" description="IO Demo"/>
+    <example name="two_digits.py" description="Display two digits"/>
+  </section>
 
   <section name="buch" description="Micropython mit µPIDE">
     <section name="leuchtanzeigen" description="Leuchtanzeigen">
