@@ -1,0 +1,64 @@
+<h1>Getting started with &mu;PIDE</h1>
+
+<p>&mu;PIDE is meant to make working with MicroPython based devices as
+  simple as possible. This help page is meant to guide you through the
+  first steps.</p>
+
+<p>All data is stored on your MicroPython device. &mu;PIDE allows you to
+  create, edit and run Python programs directly on your device.</p>
+
+<h2>The file view</h2>
+
+<p>The file view area on the left shows you everything that is stored on
+  your MicroPython device. These may be Python files (ending with .py)
+  and other files. &mu;PIDE mainly allows you to work with the Python
+  files. The files on the device may be organized in directories.</p>
+
+<p>You can double click on any existing file in the file view. If &mu;PIDE
+  supports editing the file type then a editor view will open to allow
+  you to work on that file.</p>
+
+<p>You can also right click on any item in the file view. This will open
+  a context menu that allows you to create new files, delete existing files,
+  import and export files from and to your PC etc.</p>
+
+<h2>The editor</h2>
+
+<p>If you open an existing file are create a new one, a editor window will
+  open. This allows you to modify the file as you like. Two icons will
+  appear in the lower right corner of your editor window: A black "save"
+  icon and a green "run" icon.</p>
+
+<p><img src="assets/editor_run.svg"/></p>
+
+<p>Hitting the "run" button will download your code onto the target
+  device and run it. This doesn't mean that the modified data is also
+  saved in the target. Modifying a file in the editor and running it
+  will not overwrite anything on the device and the modified file is
+  not stored.</p>
+
+<p>The program will use the console are at the bottom of &mu;PIDEs main
+  window to print text or to allow the user to input data. Also
+  error messages will appear there.</p>
+
+<p><img src="assets/editor_save.svg"/></p>
+
+<p>Writing modified data back to the device is done using the "save"
+  button. Pressing it will store your changes on the device possibly
+  overwriting any previous version. Your change will thus be preserved
+  and previous file contents will be replaced.</p>
+
+<p>Save your work frequently, otherwise it may be lost if you e.g.
+  unplug the device from the computer before saving.</p>
+
+<h2>The REPL console</h2>
+
+<p>One of the big advantages of Python is its ability for interactive
+  usage. The REPL console at the bottom of the &mu;PIDE window is used
+  for this.</p>
+
+<p><img src="assets/console_prompt.svg"/></p>
+
+<p>Hit the black prompt button in the console area to enter
+  REPL mode (REPL stands for Read, Evaluate, Print and Loop)
+  and to interact directly with the device.</p>

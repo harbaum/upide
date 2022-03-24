@@ -35,7 +35,7 @@ class EditorTabs(QTabWidget):
 
     def get_index_by_file(self, name):
         for i in range(self.count()):
-            if self.widget(i).name == name:
+            if hasattr(self.widget(i), "name") and self.widget(i).name == name:
                 return i
 
         return None
@@ -45,15 +45,17 @@ class EditorTabs(QTabWidget):
         self.stack.show(False)
     
     def on_tab_close(self, index):
-        # check if tab contains modified data
-        if self.widget(index).isModified():
-            qm = QMessageBox()
-            ret = qm.question(self,self.tr('Really close?'),
-                              self.tr("This window contains unsaved changes.")+
-                              "\n"+self.tr("Really close?"), qm.Yes | qm.No)
-            if ret == qm.No: return
+        if hasattr(self.widget(index), "isModified"):        
+            # check if tab contains modified data
+            if self.widget(index).isModified():
+                qm = QMessageBox()
+                ret = qm.question(self,self.tr('Really close?'),
+                                  self.tr("This window contains unsaved changes.")+
+                                  "\n"+self.tr("Really close?"), qm.Yes | qm.No)
+                if ret == qm.No: return
 
-        self.closed.emit(self.widget(index).name)
+            self.closed.emit(self.widget(index).name)
+            
         self.removeTab(index)
 
         # if no more tabs are left, then bring the
@@ -97,9 +99,10 @@ class EditorTabs(QTabWidget):
         # in turn may affect the paths of files in open editor tabs
         for tab in range(self.count()):
             # check if the old name is a path prefix of this tab
-            if self.widget(tab).name.startswith(old+"/"):
-                newname = new + self.widget(tab).name[len(old):]
-                self.widget(tab).rename(newname)
+            if hasattr(self.widget(tab), "name"):
+                if self.widget(tab).name.startswith(old+"/"):
+                    newname = new + self.widget(tab).name[len(old):]
+                    self.widget(tab).rename(newname)
 
         # check if it's a file name of an open tab that has been renamed
         tab = self.get_index_by_file(old)
@@ -109,14 +112,16 @@ class EditorTabs(QTabWidget):
     
     def set_button(self, state):
         for i in range(self.count()):
-            self.widget(i).set_button(state)
+            if hasattr(self.widget(i), "set_button"):
+                self.widget(i).set_button(state)
 
     def isModified(self):
         # return true if any of the editor tabs
         # contains modified (unsaved) data
         for i in range(self.count()):
-            if self.widget(i).isModified():
-                return True
+            if hasattr(self.widget(i), "isModified"):            
+                if self.widget(i).isModified():
+                    return True
 
         return False
 
@@ -193,9 +198,41 @@ class Editors(QStackedWidget):
         link.setAlignment(Qt.AlignCenter)
         vbox.addWidget(link)
 
-        vbox.addStretch(2)
+        vbox.addStretch(1)
+
+        helpW = QWidget()
+        helpHBox = QHBoxLayout()
+        helpW.setLayout(helpHBox)        
+        help = QPushButton(self.tr("Getting started"), self)
+        help.clicked.connect(self.on_help)
+        helpHBox.addStretch(1)
+        helpHBox.addWidget(help)
+        helpHBox.addStretch(1)
+        vbox.addWidget(helpW)
+        
+        vbox.addStretch(1)
         
         return vbox_w
+
+    def on_help(self):
+        with open(self.resource_path("assets/help.html")) as f:
+            helpPage = QTextEdit(self)
+            page = f.read()
+
+            # replace all (image) paths
+            page = page.replace("assets/", self.resource_path("assets/"))
+            helpPage.append(page)
+
+            text_cursor = helpPage.textCursor()
+            text_cursor.movePosition(QTextCursor.Start)
+            helpPage.setTextCursor(text_cursor)
+
+            # create a help tab
+            tab = self.tabs.addTab(helpPage, self.tr("Help"))
+            self.tabs.setCurrentIndex(tab)
+
+            # bring tabs to front
+            self.show(True)
         
     def exists(self, name):
         return self.tabs.exists(name)
@@ -285,7 +322,7 @@ class Editors(QStackedWidget):
     def on_current_changed(self, tab):
         # user has selected a different tab. Tell fileview to select the
         # corresponding file
-        if tab >= 0:
+        if tab >= 0 and hasattr(self.tabs.widget(tab), "name"):
             self.changed.emit(self.tabs.widget(tab).name)
         
     def on_select(self, name):
