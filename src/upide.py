@@ -478,12 +478,9 @@ class Window(QMainWindow):
       self.fileview.requestExample(name, ctx)
       
    def on_import(self, local, name):
-      # open anything the editor won't handle as binary
-      mode = "r" if self.fileview.is_editable(name) else "rb"
-         
       # load the file into memory
       try:
-         with open(local, mode) as f:
+         with open(local, "rb") as f:
             code = f.read()
 
             # check if this file already exists
@@ -914,5 +911,5 @@ if __name__ == '__main__':
    tr.load(QLocale.system().name(), Window.resource_path("assets/i18n"))
    app.installTranslator(tr)
    
-   a = Window(app, flags)
+   Window(app, flags)
    sys.exit(app.exec_())
