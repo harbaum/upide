@@ -1,0 +1,73 @@
+<h1>Erste Schritte mit &mu;PIDE</h1>
+
+<p>&mu;PIDE hat das Ziel, die Arbeit mit MicroPython-basierten
+  Ger&auml;ten so einfach wie m&ouml;glich zu machen. Diese Hilfeseite
+  soll durch die ersten Schritte f&uuml;hren.</p>
+
+<p>Alle Daten sind dabei auf dem MicroPython-Ger&auml;t gespeichert.
+  &mu;PIDE erlaubt es, Python-Programme direkt auf dem Ger&auml;t
+  zu erstellen, zu bearbeiten und auszuf&uuml;hren.</p>
+
+<h2>Die Dateiansicht</h2>
+
+<p>Die Dateisansicht links zeigt alles an, das auf dem
+  MicroPythion-Ger&auml;t gespeichert ist. Das k&ouml;nnen
+  Python-Dateien (auf .py endend) sowie andere Dateien sein. &mu;PIDE
+  erlaubt es in erster Linie, mit den Python-Dateien zu arbeiten.
+  Diese Dateien k&ouml;nnen in Verzeichnissen organisiert sein.</p>
+
+<p>Ein Doppelklick auf eine bestehende Datei in der Dateiansicht
+  &ouml;ffnet die entsprechende Datei. Wenn &mu;PIDE die Bearbeitung
+  des Dateiformats unterst&uuml;tzt, dann &ouml;ffent sich ein
+  Fenster, das die Bearbeitung der Datei erlaubt.</p>
+
+<p>Ein Rechtsklick auf ein Objekt in der Dateiansicht &ouml;ffent
+  ein Kontextmen&uuml;, das es erlaubt, neue Dateien anzulegen,
+  bestehende zu l&ouml;schen, Dateien vom PC zu importieren, zu
+  exportieren usw.</p>
+
+<h2>Der Editor</h2>
+
+<p>Wenn man eine bestehende Datei &ouml;ffnet oder eine neue anlegt
+  wird sich ein Editorfenster &ouml;ffnen. Hier kann man die Datei
+  nach Belieben ver&auml;ndern. Zwei Symbole erscheinen in der unteren
+  Ecke des Editors: Ein schwarzes "Speichern"-Symbol und ein gr&uuml;nes
+  "Ausf&uuml;hren"-Symbol.</p>
+
+<p><img src="assets/editor_run.svg"/></p>
+
+<p>Ein Klick auf das "Ausf&uuml;hren"-Symbol l&auml;dt den Code auf
+  das Ger&auml;t und f&uuml;hrt ihn aus. Das bedeutet nicht, dass die
+  ver&auml;nderten Daten auf dem Ger&auml;t gespeichert werden. Eine
+  Datei im Editor zu ver&auml;ndern und auf dem Ger&auml;t
+  auszuf&uuml;hren ver&auml;ndert keine Daten auf dem Ger&auml;t und
+  die ver&auml;nderte Datei wird nicht gespeichert.</p>
+
+<p>Das Programm nutzt die Konsole am unteren Fensterrand der &mu;PIDE,
+  um Textdaten auszugeben und Eingaben engegenzunehmen. Auch
+  Fehlermeldungen erscheinen hier.</p>
+  
+<p><img src="assets/editor_save.svg"/></p>
+
+<p>Ver&auml;nderte Daten werden mit dem "Speichern"-Symbol auf
+  das Ger&auml;t zur&uuml;ckgeschrieben. Der Klick auf das Symbol
+  schreibt die ver&auml;nderten Daten in die bestehende Datei, der
+  vorherige Inhalt geht dabei verloren. Die &Auml;nderungen werden
+  so dauerhaft erhalten und bestehende Daten werden ersetzt.</p>
+
+<p>Es lohnt sich, &Auml;nderungen regelm&auml;&szlig;ig zu speichern.
+  Andernfalls k&ouml;nnen ungespeicherte Daten verloren gehen,
+  wenn zum Beispiel das Ger&auml;t vom Computer getrennt wird.</p>
+
+<h2>Die REPL-Konsole</h2>
+
+<p>Einer der gro&szlig;en Vorteile von Python ist die M&ouml;glichkeit
+  der interaktiven Anwendung. Die REPL-Komsole am unteren Fensterrand
+  wird daf&uuml;r genutzt.</p>
+
+<p><img src="assets/console_prompt.svg"/></p>
+
+<p>Ein Klick auf das schwarze Symbol in der Konsole startet
+  den interaktiven Modus (REPL steht für Read, Evaluate, Print und Loop)
+  und erlaubt es direkt interaktiv mit dem Ger&auml;t zu
+  kommunizieren.</p>

@@ -215,7 +215,7 @@ class Editors(QStackedWidget):
         return vbox_w
 
     def on_help(self):
-        with open(self.resource_path("assets/help.html")) as f:
+        with open(self.resource_path(self.tr("assets/help.html"))) as f:
             helpPage = QTextEdit(self)
             page = f.read()
 
