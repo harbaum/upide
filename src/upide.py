@@ -615,6 +615,11 @@ class Window(QMainWindow):
          self.fileview.set(files)      
       
    def on_version(self, success, version):
+      # enable soft reset unless some LEGO device was detected. The reboot of the
+      # LEGO firmware does not work properly if the device is rebooted in raw_repl
+      if not "lego" in version['nodename'].lower():
+         self.board.set_soft_reset(True)
+      
       self.status(self.tr("{0} connected, MicroPython V{1} on {2}").format(self.board.getPort(), version['release'], version['nodename']));
       self.fileview.sysname(version['nodename'])
       self.sysname = version['nodename']

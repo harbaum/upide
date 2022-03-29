@@ -58,6 +58,11 @@ class Board(QObject):
       self.timer.timeout.connect(self.on_timer)
       self.timer.start(20)  # poll at 50 Hz
 
+      self.soft_reset = False  # disable by default, enable if no LEGO device is detected
+
+   def set_soft_reset(self, mode):
+      self.soft_reset = mode
+      
    def send_console(self, str):
       self.queue.put( ( "console",  str ) )
       
@@ -97,10 +102,10 @@ class Board(QObject):
       board.serial.timeout = 1
         
       try:
-         board.enter_raw_repl()
+         board.enter_raw_repl(self.soft_reset)
       except Exception as e:
          try:
-            board.enter_raw_repl()
+            board.enter_raw_repl(self.soft_reset)
          except Exception as e:
             board.close()
             return None
@@ -257,7 +262,7 @@ class Board(QObject):
 
    def func(self, cmd):
       self.reply_parser()           # reset parser
-      self.board.enter_raw_repl()
+      self.board.enter_raw_repl(self.soft_reset)
       self.board.exec_(cmd, data_consumer=self.reply_parser_ast)
       self.board.exit_raw_repl()
       self.send_result(True, self.result)
@@ -267,7 +272,7 @@ class Board(QObject):
       # of parsable python, so it can be eval'uated on PC side
       self.func(
          "import uos\n"
-         "def list(d):\n"
+         "def _list(d):\n"
          " print('[',end='')\n"
          " first=True\n"
          " for f in uos.ilistdir(d if d else '/'):\n"
@@ -275,11 +280,11 @@ class Board(QObject):
          "  if first: first=False\n"
          "  else:     print(',',end='')\n"
          "  print('(\"{}\",'.format(f[0]), end='')\n"
-         "  if f[1]&0x4000: list(d+'/'+f[0])\n"
+         "  if f[1]&0x4000: _list(d+'/'+f[0])\n"
          "  else: print('{}'.format(f[3] if len(f)>3 else 0), end='')\n"
          "  print(')', end='')\n"
          " print(']',end='')\n"
-         "list('')\n"
+         "_list('')\n"
       )
 
    def ls(self):
@@ -287,7 +292,7 @@ class Board(QObject):
 
    def func_get(self, src, size, reply_parms, chunk_size=256):
       self.reply_parser()           # reset parser
-      self.board.enter_raw_repl()
+      self.board.enter_raw_repl(self.soft_reset)
 
       self.board.exec_("f=open('%s','rb')\nr=f.read" % src)
       result = bytearray()
@@ -313,25 +318,6 @@ class Board(QObject):
       reply_parms["code"] = result   # add data read to reply
       self.send_result(True, reply_parms )
       
-   def func_get_old(self, name, size, reply_parms):
-      self.reply_parser()           # reset parser
-      self.board.enter_raw_repl()
-      
-      # transfer data "binhexlified" to make sure even binary
-      # data can be passed without problems
-      command  = ("import sys, ubinascii\n"
-                  "with open('{0}', 'rb') as infile:\n"
-                  " while True:\n"
-                  "  result = infile.read(32)\n"
-                  "  if result == b'': break\n"
-                  "  sys.stdout.write(ubinascii.hexlify(result))\n").format(name)
-        
-      data = self.board.exec_(command)
-      self.board.exit_raw_repl()
-   
-      reply_parms["code"] = binascii.unhexlify(data)
-      self.send_result(True, reply_parms )
-            
    def get(self, name, size, reply_parms):
       self.progress.emit(0)
       self.status.emit(self.tr("Reading {}".format(name.split("/")[-1])))
@@ -339,7 +325,7 @@ class Board(QObject):
        
    def func_put(self, all_data, dest, chunk_size=256):
       self.reply_parser()           # reset parser
-      self.board.enter_raw_repl()
+      self.board.enter_raw_repl(self.soft_reset)
       size = len(all_data)
       sent = 0
       
@@ -369,7 +355,7 @@ class Board(QObject):
 
    def func_run(self, name, code):
       self.reply_parser()           # reset parser
-      self.board.enter_raw_repl()
+      self.board.enter_raw_repl(self.soft_reset)
       
       self.board.exec_raw_no_follow(code)
       self.queue.put( ( "downloaded", ) )
@@ -413,7 +399,7 @@ class Board(QObject):
       self.board._interrupt = True
       
    def replDo(self, cmd):
-      self.board.enter_raw_repl()
+      self.board.enter_raw_repl(self.soft_reset)
       self.board.exec_(cmd)
       self.board.exit_raw_repl()
       
@@ -497,7 +483,7 @@ class Board(QObject):
       if cmd == Board.SCAN:
          self.scan()
       
-      elif cmd == Board.GET_VERSION:
+      elif cmd == Board.GET_VERSION:         
          self.version()
 
       elif cmd == Board.LISTDIR:
