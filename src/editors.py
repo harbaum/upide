@@ -176,7 +176,7 @@ class Editors(QStackedWidget):
         title.setAlignment(Qt.AlignCenter)
         vbox.addWidget(title)
 
-        version = QLabel("V1.1.3", vbox_w)
+        version = QLabel("V1.1.3b", vbox_w)
         version.setAlignment(Qt.AlignCenter)
         vbox.addWidget(version)
         

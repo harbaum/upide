@@ -916,5 +916,5 @@ if __name__ == '__main__':
    tr.load(QLocale.system().name(), Window.resource_path("assets/i18n"))
    app.installTranslator(tr)
    
-   Window(app, flags)
+   a = Window(app, flags)
    sys.exit(app.exec_())
