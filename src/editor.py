@@ -375,7 +375,7 @@ class CodeEditor(QPlainTextEdit):
         
         self.search_dialog.setLayout(vbox)
         self.searchedit.setFocus()
-        self.search_dialog.exec_()
+        self.search_dialog.show()
 
     def on_save(self):
         # only really emit this signal if the save button is enabled
@@ -476,7 +476,7 @@ class CodeEditor(QPlainTextEdit):
         # in the editor. This e.g. happens if a file is imported from the
         # PC which was already open in the editor
         if code != self.text():
-            self.setCode(code)
+            self.setCode(code.encode("utf-8"))
         else:
             # the current code has been saved. So it becomes the
             # unmodified one
