@@ -534,8 +534,8 @@ class Window(QMainWindow):
          self.start_rescan()
       else:
          # flashing may have failed and the user may not want to retry.
-         # This the serial port may be closed
-         if not self.board.serial:
+         # Thus the serial port may be closed
+         if not self.board.board: 
             self.start_rescan()
 
    def mainWidget(self):

@@ -4,24 +4,52 @@
 <context>
     <name>Board</name>
     <message>
-        <location filename="../../board.py" line="75"/>
+        <location filename="../../board_orig.py" line="591"/>
         <source>Checking port {}</source>
         <translation>Untersuche Anschluss {}</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="478"/>
+        <location filename="../../board_orig.py" line="639"/>
         <source>Failed to enter repl</source>
         <translation>Konnte REPL nicht starten</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="337"/>
+        <location filename="../../board.py" line="323"/>
         <source>Reading {}</source>
         <translation>Lese {}</translation>
     </message>
     <message>
-        <location filename="../../board.py" line="367"/>
+        <location filename="../../board.py" line="353"/>
         <source>Writing {}</source>
         <translation>Schreibe {}</translation>
+    </message>
+    <message>
+        <location filename="../../board_orig.py" line="473"/>
+        <source>&lt;unknown&gt;</source>
+        <translation>&lt;unbekannt&gt;</translation>
+    </message>
+    <message>
+        <location filename="../../board_orig.py" line="486"/>
+        <source>Error: Board not responding to command!</source>
+        <translation>Fehler: Board reagier nicht auf Kommando!</translation>
+    </message>
+    <message>
+        <location filename="../../board_orig.py" line="595"/>
+        <source>no board</source>
+        <translation>Kein Board</translation>
+    </message>
+    <message>
+        <location filename="../../board_orig.py" line="596"/>
+        <source>No board found!</source>
+        <translation>Kein  Board gefunden!</translation>
+    </message>
+</context>
+<context>
+    <name>BoardThread</name>
+    <message>
+        <location filename="../../board_orig.py" line="107"/>
+        <source>Unexpected command</source>
+        <translation>Unerwartetes Kommando</translation>
     </message>
 </context>
 <context>
@@ -109,54 +137,54 @@
 <context>
     <name>EspInstaller</name>
     <message>
-        <location filename="../../esp_installer.py" line="209"/>
+        <location filename="../../esp_installer.py" line="211"/>
         <source>Unsupported system</source>
         <translation>Nicht unterstützes System</translation>
     </message>
     <message>
         <location filename="../../esp_installer.py" line="209"/>
         <source>Your board &quot;{}&quot; doesn&apos;t seem to be supported by the ESP flasher. Proceed with care!</source>
-        <translation>Das Bord &quot;{}&quot; scheint nicht von der ESP32-Installation unterstützt zu werden. Vorsicht beim Fortfahren!</translation>
+        <translation type="obsolete">Das Bord &quot;{}&quot; scheint nicht von der ESP32-Installation unterstützt zu werden. Vorsicht beim Fortfahren!</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="228"/>
+        <location filename="../../esp_installer.py" line="233"/>
         <source>Erase all data</source>
         <translation>Alle Daten löschen</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="449"/>
+        <location filename="../../esp_installer.py" line="454"/>
         <source>Show details...</source>
         <translation>Details anzeigen...</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="368"/>
+        <location filename="../../esp_installer.py" line="373"/>
         <source>Installation done</source>
         <translation>Installation beendet</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="368"/>
+        <location filename="../../esp_installer.py" line="373"/>
         <source>The MicroPython installation finished successfully</source>
         <translation>Die Micropython-Installation wurde erfolgreich beendet</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="381"/>
+        <location filename="../../esp_installer.py" line="386"/>
         <source>Firmware installation failed</source>
         <translation>Firmware-Installation fehlgeschlagen</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="385"/>
+        <location filename="../../esp_installer.py" line="390"/>
         <source>Waiting for firmware to boot ...
 </source>
         <translation>Warte auf Firmware-Start ...
 </translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="405"/>
+        <location filename="../../esp_installer.py" line="410"/>
         <source>Flashing firmware</source>
         <translation>Flashe Firmware</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="446"/>
+        <location filename="../../esp_installer.py" line="451"/>
         <source>Hide details...</source>
         <translation>Details verbergen...</translation>
     </message>
@@ -166,12 +194,12 @@
         <translation>Fehler beim Laden der ESP32-Firmware-Daten</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="181"/>
+        <location filename="../../esp_installer.py" line="182"/>
         <source>Port:</source>
         <translation>Anschluss:</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="200"/>
+        <location filename="../../esp_installer.py" line="201"/>
         <source>Type:</source>
         <translation>Typ:</translation>
     </message>
@@ -181,7 +209,7 @@
         <translation>ESP-Micropython-Installation</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="250"/>
+        <location filename="../../esp_installer.py" line="255"/>
         <source>ESP MicroPython installation tool
 Please select the appropriate COM port
 and the ESP board type you are using.
@@ -192,9 +220,14 @@ den ESP-Bord-Typ auswählen.
 Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="378"/>
+        <location filename="../../esp_installer.py" line="383"/>
         <source>Firmware installed successfully</source>
         <translation>Firmware erfolgreich installiert</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="211"/>
+        <source>Your board &quot;{}&quot; doesn&apos;t seem to be supported by the ESP flasher. Do you really want to proceed?</source>
+        <translation>Das Board &quot;{}&quot; scheint nicht vom ESP-Flasher unterstützt zu werden. Wirklich fortfahren?</translation>
     </message>
 </context>
 <context>
@@ -343,209 +376,209 @@ Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
 <context>
     <name>Window</name>
     <message>
-        <location filename="../../upide.py" line="84"/>
+        <location filename="../../upide_pybricks_ble.py" line="84"/>
         <source>Saved {}</source>
         <translation>{} gespeichert</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="111"/>
+        <location filename="../../upide_pybricks_ble.py" line="111"/>
         <source>Saving aborted with error</source>
         <translation>Speichern mit Fehler abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="140"/>
+        <location filename="../../upide_pybricks_ble.py" line="140"/>
         <source>Code execution successful</source>
         <translation>Codeausführung erfolgreich</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="141"/>
+        <location filename="../../upide_pybricks_ble.py" line="141"/>
         <source>Code execution aborted with error</source>
         <translation>Codeausführung mit Fehler abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="147"/>
+        <location filename="../../upide_pybricks_ble.py" line="147"/>
         <source>Running code ...</source>
         <translation>Führe Code aus ...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="621"/>
+        <location filename="../../upide_pybricks_ble.py" line="623"/>
         <source>{0} connected, MicroPython V{1} on {2}</source>
         <translation>{0} verbunden,  MicroPython V{1} auf {2}</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="670"/>
+        <location filename="../../upide_pybricks_ble.py" line="672"/>
         <source>Search done</source>
         <translation>Suche beendet</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="809"/>
+        <location filename="../../upide_pybricks_ble.py" line="811"/>
         <source>Connecting port {}...</source>
         <translation>Verbinde port {}...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="863"/>
+        <location filename="../../upide_pybricks_ble.py" line="865"/>
         <source>Starting ...</source>
         <translation>Starte ...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="47"/>
+        <location filename="../../upide_pybricks_ble.py" line="47"/>
         <source>Really quit?</source>
         <translation>Wirklich beenden?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="47"/>
+        <location filename="../../upide_pybricks_ble.py" line="47"/>
         <source>Your workspace contains unsaved changes.</source>
         <translation>Der Arbeitsplatz enthält ungespeicherte Änderungen.</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="653"/>
+        <location filename="../../upide_pybricks_ble.py" line="655"/>
         <source>Flash...</source>
         <translation>Flashen...</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="648"/>
+        <location filename="../../upide_pybricks_ble.py" line="650"/>
         <source>No board found</source>
         <translation>Kein Bord gefunden</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="648"/>
+        <location filename="../../upide_pybricks_ble.py" line="650"/>
         <source>No MicroPython board was detected!</source>
         <translation>Kein Micropython-Bord wurde erkannt!</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="648"/>
+        <location filename="../../upide_pybricks_ble.py" line="650"/>
         <source>Do you want to flash the MicroPython firmware or retry searching for a MicroPython board?</source>
         <translation>Möchten Sie die Micropython-Firmware flashen oder die Suche wiederholen?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="714"/>
+        <location filename="../../upide_pybricks_ble.py" line="716"/>
         <source>Stopped by user</source>
         <translation>Durch Benutzer abgebrochen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="515"/>
+        <location filename="../../upide_pybricks_ble.py" line="512"/>
         <source>Error</source>
         <translation>Fehler</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="840"/>
+        <location filename="../../upide_pybricks_ble.py" line="842"/>
         <source>Connection to board lost</source>
         <translation>Verbindung zum Bord verloren</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="822"/>
+        <location filename="../../upide_pybricks_ble.py" line="824"/>
         <source>Board lost</source>
         <translation>Bord verloren</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="822"/>
+        <location filename="../../upide_pybricks_ble.py" line="824"/>
         <source>The connection to the board has been lost!
 Do you want to reconnect?</source>
         <translation>Die Verbindung zum Bord wurde verloren!
 Soll versucht werden, die Verbindung wieder herzustellen?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="606"/>
+        <location filename="../../upide_pybricks_ble.py" line="603"/>
         <source>Interactive mode active</source>
         <translation>Interaktiver Modus aktiv</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="593"/>
+        <location filename="../../upide_pybricks_ble.py" line="590"/>
         <source>Interactive mode done</source>
         <translation>Interaktiver Modus beendet</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="767"/>
+        <location filename="../../upide_pybricks_ble.py" line="769"/>
         <source>Select port</source>
         <translation>Anschlussauswahl</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="777"/>
+        <location filename="../../upide_pybricks_ble.py" line="779"/>
         <source>Port:</source>
         <translation>Anschluss:</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="201"/>
+        <location filename="../../upide_pybricks_ble.py" line="201"/>
         <source>Backup successful</source>
         <translation>Sicherung erfolgreich</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="247"/>
+        <location filename="../../upide_pybricks_ble.py" line="247"/>
         <source>Backing up: </source>
         <translation>Sichere: </translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="253"/>
+        <location filename="../../upide_pybricks_ble.py" line="253"/>
         <source>Create backup</source>
         <translation>Erzeuge Sicherung</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="412"/>
+        <location filename="../../upide_pybricks_ble.py" line="412"/>
         <source>Backup archive (*.zip)</source>
         <translation>Sicherungsarchiv (*.zip)</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="273"/>
+        <location filename="../../upide_pybricks_ble.py" line="273"/>
         <source>Restoration successful</source>
         <translation>Wiederherstellung erfolgreich</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="274"/>
+        <location filename="../../upide_pybricks_ble.py" line="274"/>
         <source>Restoration failed</source>
         <translation>Wiederherstellung fehlgeschlagen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="347"/>
+        <location filename="../../upide_pybricks_ble.py" line="347"/>
         <source>Restoring: </source>
         <translation>Stelle wieder her: </translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="412"/>
+        <location filename="../../upide_pybricks_ble.py" line="412"/>
         <source>Restore backup</source>
         <translation>Sicherung wiederherstellen</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="202"/>
+        <location filename="../../upide_pybricks_ble.py" line="202"/>
         <source>Backup failed: </source>
         <translation>Backup fehlgeschlagen: </translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="368"/>
+        <location filename="../../upide_pybricks_ble.py" line="368"/>
         <source>Import file</source>
         <translation>Datei importieren</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="394"/>
+        <location filename="../../upide_pybricks_ble.py" line="394"/>
         <source>Any file (*)</source>
         <translation>Alle Dateien (*)</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="374"/>
+        <location filename="../../upide_pybricks_ble.py" line="374"/>
         <source>Really overwrite?</source>
         <translation>Wirklich überschreiben?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="374"/>
+        <location filename="../../upide_pybricks_ble.py" line="374"/>
         <source>Do you really want to overwrite it?</source>
         <translation>Soll sie  wirklich überschrieben werden?</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="374"/>
+        <location filename="../../upide_pybricks_ble.py" line="374"/>
         <source>A file with that name already exists.</source>
         <translation>Eine Datei mit dem Namen existiert bereits.</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="390"/>
+        <location filename="../../upide_pybricks_ble.py" line="390"/>
         <source>Exported {}</source>
         <translation>{} exportiert</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="394"/>
+        <location filename="../../upide_pybricks_ble.py" line="394"/>
         <source>Export file</source>
         <translation>Datei exportieren</translation>
     </message>
     <message>
-        <location filename="../../upide.py" line="495"/>
+        <location filename="../../upide_pybricks_ble.py" line="492"/>
         <source>Import failed:</source>
         <translation>Import fehlgeschlagen:</translation>
     </message>

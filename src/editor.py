@@ -476,7 +476,10 @@ class CodeEditor(QPlainTextEdit):
         # in the editor. This e.g. happens if a file is imported from the
         # PC which was already open in the editor
         if code != self.text():
-            self.setCode(code.encode("utf-8"))
+            if hasattr(code, "encode"):
+                self.setCode(code.encode("utf-8"))
+            else:
+                self.setCode(code)
         else:
             # the current code has been saved. So it becomes the
             # unmodified one

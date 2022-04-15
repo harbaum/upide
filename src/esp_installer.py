@@ -171,6 +171,7 @@ class EspInstaller(QVBoxLayout):
          msg2.setStyleSheet("color: red;");
          msg2.setAlignment(Qt.AlignCenter);
          self.addWidget(msg2)
+         self.fail = True      # init has failed
          return
 
       # create a dropdown list of serial ports ...
@@ -205,11 +206,15 @@ class EspInstaller(QVBoxLayout):
          if f["sysname"] not in sysnames:
             sysnames.append(f["sysname"])
 
+      # todo: move this out of here
       if sysname is not None and sysname.upper() not in sysnames:
-         QMessageBox().information(self.rootElement(),
-                                   self.tr('Unsupported system'),
-              self.tr("Your board \"{}\" doesn't seem to be supported by "
-              "the ESP flasher. Proceed with care!").format(sysname), QMessageBox().Ok)
+         if QMessageBox().information(self.rootElement(),
+             self.tr('Unsupported system'),
+             self.tr("Your board \"{}\" doesn't seem to be supported by "
+             "the ESP flasher. Do you really want to proceed?").format(sysname),
+            QMessageBox().Yes | QMessageBox().No) == QMessageBox().No:
+            self.fail = True      # init has failed
+            return
             
       self.type_cbox = QComboBox()
       for s in sysnames: self.type_cbox.addItem(s)
@@ -457,6 +462,7 @@ class EspInstaller(QVBoxLayout):
       dialog = QDialog(parent)
       dialog.resize(500,140)
       installer = EspInstaller(dialog, cb, sysname, port)
+      if hasattr(installer, "fail"): return False
       dialog.setLayout(installer)
       dialog.setWindowModality(Qt.ApplicationModal)
       dialog.exec_()
