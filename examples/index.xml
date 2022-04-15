@@ -4,9 +4,10 @@
     <example name="leds.py" description="Running led lights"/>      
   </section>
   
-  <section name="spike" description="LEGO Spike Hub">
+  <section name="mindstorms" description="LEGO Mindstorms">
     <example name="io_demo.py" description="IO Demo"/>
     <example name="two_digits.py" description="Display two digits"/>
+    <example name="digits_and_colors.py" description="Sound, digits and color demo"/>
   </section>
 
   <section name="buch" description="Micropython mit µPIDE">
