@@ -39,9 +39,10 @@ class Highlighter(QSyntaxHighlighter):
             _format.setFontWeight(QFont.Bold)
         if 'italic' in style:
             _format.setFontItalic(True)
+        if 'underline' in style:
+            _format.setFontUnderline(True)
    
         return _format
-
 
 class HtmlHighlighter(Highlighter):
     # https://evileg.com/en/post/218/
@@ -57,45 +58,50 @@ class HtmlHighlighter(Highlighter):
             'string': Highlighter.format('darkMagenta'),
             'comment': Highlighter.format('darkRed'),
             'attribute': Highlighter.format('brown'),
-            'doctype': Highlighter.format('darkRed'),
             'numbers': Highlighter.format('darkGreen'),
+            'heading': Highlighter.format('darkGreen', 'underline'),
         }
 
-        keywords = [ "html", "head", "style", "body", "h1", "script", "div", "canvas" ]
+        keywords = [ "html", "head", "style", "body", "h[0-9]", "script", "div", "canvas" ]
     
         rules = [ ]
         rules += [
-            ( r'[<>]', 0, 0, STYLES['tagmark'] ),
-            ( r'<!', 0, 0, STYLES['tagmark'] ),
-            ( r'</', 0, 0, STYLES['tagmark'] ),
-            ( r'/>', 0, 0, STYLES['tagmark'] ),
+            ( r'[<>]', 0, (0,0), STYLES['tagmark'] ),
+            ( r'<!', 0, (0,0), STYLES['tagmark'] ),
+            ( r'</', 0, (0,0), STYLES['tagmark'] ),
+            ( r'/>', 0, (0,0), STYLES['tagmark'] ),
             
             # Numeric literals
-            (r'\b[+-]?[0-9]+[lL]?\b', 0, 0, STYLES['numbers']),
-            (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, 0, STYLES['numbers']),
-            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, 0, STYLES['numbers']),
+            (r'\b[+-]?[0-9]+[lL]?\b', 0, (0,0), STYLES['numbers']),
+            (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, (0,0), STYLES['numbers']),
+            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, (0,0), STYLES['numbers']),
             
             # Double-quoted string, possibly containing escape sequences
-            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, 0, STYLES['string']),
+            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, (0,0), STYLES['string']),
             # Single-quoted string, possibly containing escape sequences
-            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, 0, STYLES['string']),
+            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, (0,0), STYLES['string']),
 
-            ( r"<!\bDOCTYPE\b.*>", 0, 0, STYLES['doctype']),
+            ( r"<!\bDOCTYPE\b.*>", 0, (0,0), STYLES['comment']),
             
-            ( r"\b[a-zA-Z_][a-zA-Z_0-9\.]*\b\s*=", 0, -1, STYLES['attribute']),
+            ( r"\b[a-zA-Z_][a-zA-Z_0-9\.]*\b\s*=", 0, (0,1), STYLES['attribute']),
+
+            # html heading
+            ( r"<h([0-9])>.*</h\1>", 0, (4,5), STYLES['heading']),
             ]
 
         # add opening rules
-        rules += [(r'<\b%s\b' % w, 0, 1, STYLES['keyword']) for w in keywords]
+        rules += [(r'<\b%s\b' % w, 0, (1,0), STYLES['keyword']) for w in keywords]
         # add closing rules
-        rules += [(r'</\b%s\b' % w, 0, 2, STYLES['keyword']) for w in keywords]
+        rules += [(r'</\b%s\b' % w, 0, (2,0), STYLES['keyword']) for w in keywords]
         
         self.rules = [(QRegExp(pat), index, skip, fmt)
                       for (pat, index, skip, fmt) in rules]
 
-    def highlightBlock(self, text):
-#        print("HB", text)
+        self.comment_start = ( QRegExp(r'<!--.*$'), STYLES["comment"])
+        self.comment_end = ( QRegExp(r'-->'), STYLES["comment"])
+        self.comment_single = ( QRegExp(r'<!--.*-->'), STYLES["comment"])
         
+    def highlightBlock(self, text):
         for expression, nth, skip, format in self.rules:
             index = expression.indexIn(text, 0)
             # if index >= 0:
@@ -103,11 +109,35 @@ class HtmlHighlighter(Highlighter):
                 # We actually want the index of the nth match
                 index = expression.pos(nth)
                 length = len(expression.cap(nth))
-#                print(":", expression, "-", index, length, "=", format)
-                self.setFormat(index+(0 if skip<0 else skip), length-(skip if skip > 0 else -skip), format)
+                self.setFormat(index+skip[0], length-skip[0]-skip[1], format)
                 index = expression.indexIn(text, index + length)
   
         self.setCurrentBlockState(0)
+
+        # check if previous line was the start of a comment
+        if self.previousBlockState() == 1:
+            # check if comment ends here
+            index = self.comment_end[0].indexIn(text, 0)
+            if index >= 0:
+                # yes, it ends here. format it
+                self.setFormat(index, len(self.comment_end[0].cap()), self.comment_end[1])
+            else:
+                # doesn't end. format entire line and set comment state
+                self.setFormat(0, len(text), self.comment_end[1])
+                self.setCurrentBlockState(1)  # continue to mark as "in comment"
+            
+        # check for start of (multiline) comments        
+        if self.comment_start[0].indexIn(text, 0) >= 0:
+            # check if the comment ends here
+            index = self.comment_single[0].indexIn(text, 0)
+            if index >= 0:
+                # format the whole comment
+                self.setFormat(index, len(self.comment_single[0].cap()), self.comment_single[1])
+            else:
+                # nope, just the start comment
+                index = self.comment_start[0].indexIn(text, 0)
+                self.setFormat(index, len(self.comment_start[0].cap()), self.comment_start[1])
+                self.setCurrentBlockState(1)  # mark as "in comment"
 
 class PythonHighlighter(Highlighter):
     # Python highlighting
@@ -323,7 +353,7 @@ class CodeEditor(QPlainTextEdit):
         # use syntax highlighter on python files
         if self.isPython():
             self.highlighter = PythonHighlighter(self.document())
-        elif self.name.split(".")[-1].lower() in [ "htm", "html" ]:
+        elif self.isHtml():
             self.highlighter = HtmlHighlighter(self.document())
 
         # overlay run button
@@ -362,6 +392,9 @@ class CodeEditor(QPlainTextEdit):
     def isPython(self):
         return self.name.split(".")[-1].lower() in [ "py", "mpy" ]
         
+    def isHtml(self):
+        return self.name.split(".")[-1].lower() in [ "htm", "html" ]
+
     def isModified(self):
         return self.code_is_modified
         
@@ -493,6 +526,9 @@ class CodeEditor(QPlainTextEdit):
         # for python programs the tab is converted to four spaces
         if self.isPython() and event.key() == Qt.Key_Tab:
             self.textCursor().insertText(" " * (4 - self.textCursor().columnNumber() % 4))
+            event.accept()
+        elif self.isHtml() and event.key() == Qt.Key_Tab:
+            self.textCursor().insertText(" " * (2 - self.textCursor().columnNumber() % 2))
             event.accept()
         else:
             QPlainTextEdit.keyPressEvent(self, event )

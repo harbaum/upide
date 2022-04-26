@@ -43,16 +43,6 @@ class Window(QMainWindow):
       self.sysname = None
 
    def on_exit(self):
-      # save window related settings
-      self.settings.setValue('window_size', self.size())
-      self.settings.setValue('window_position', self.pos())
-      self.settings.setValue('window_hsplitter', self.hsplitter.saveState())
-      self.settings.setValue('window_vsplitter', self.vsplitter.saveState())
-      
-      # save info about open editors
-      self.settings.setValue('editor_open', self.editors.getAll())
-      self.settings.setValue('editor_current', self.editors.get_current())
-      
       self.board.close()
 
    def closeEvent(self, event):
@@ -65,6 +55,16 @@ class Window(QMainWindow):
             event.ignore();
             return
 
+      # save window related settings
+      self.settings.setValue('window_geometry', self.saveGeometry())
+      self.settings.setValue('window_state', self.saveState())
+      self.settings.setValue('window_hsplitter', self.hsplitter.saveState())
+      self.settings.setValue('window_vsplitter', self.vsplitter.saveState())
+      
+      # save info about open editors
+      self.settings.setValue('editor_open', self.editors.getAll())
+      self.settings.setValue('editor_current', self.editors.get_current())
+      
       event.accept()
 
    def resource_path(relative_path):
@@ -928,8 +928,8 @@ class Window(QMainWindow):
 
       # restore window position, size and splitter settings
       try:
-         self.resize(self.settings.value('window_size'))
-         self.move(self.settings.value('window_position'))
+         self.restoreGeometry(self.settings.value('window_geometry'))
+         self.restoreState(self.settings.value('window_state'))
          self.hsplitter.restoreState(self.settings.value('window_hsplitter'))
          self.vsplitter.restoreState(self.settings.value('window_vsplitter'))
       except:

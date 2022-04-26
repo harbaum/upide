@@ -711,7 +711,8 @@ class FileView(QTreeView):
 
    # file types supported by editors
    EDITABLE_TYPES = [
-      ( [ "py", "mpy" ], "Python" ), ( [ "html", "htm" ], "HTML"), ( ["css"], "CSS"), ( ["txt"], "Text"), ( ["json"], "JSON") ]
+      ( [ "py", "mpy" ], "Python" ), ( [ "html", "htm" ], "HTML"), ( ["css"], "CSS"),
+      ( ["txt"], "Text"), ( ["json"], "JSON"), ( ["js"], "Javascript") ]
          
    def is_editable(self, name):
       # files ending with .py, .html, .css, .txt or .json can be opened/edited
