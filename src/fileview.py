@@ -512,7 +512,7 @@ class FileView(QTreeView):
       # create a dropdown list of supported file types
       type_cbox = QComboBox()
       for p in self.EDITABLE_TYPES:
-         type_cbox.addItem(p[1], p[0])
+         type_cbox.addItem(p[1], p[0][0])
          
       hbox.addWidget(type_cbox)
       vbox.addWidget(hboxW)
@@ -711,11 +711,15 @@ class FileView(QTreeView):
 
    # file types supported by editors
    EDITABLE_TYPES = [
-      ( "py", "Python" ), ( "html", "HTML"), ("css", "CSS"), ("txt", "Text"), ("json", "JSON") ]
+      ( [ "py", "mpy" ], "Python" ), ( [ "html", "htm" ], "HTML"), ( ["css"], "CSS"), ( ["txt"], "Text"), ( ["json"], "JSON") ]
          
    def is_editable(self, name):
       # files ending with .py, .html, .css, .txt or .json can be opened/edited
-      return name.split(".")[-1].lower() in ([x[0] for x in self.EDITABLE_TYPES])
+      for t in self.EDITABLE_TYPES:
+         if name.split(".")[-1].lower() in t[0]:
+            return True
+
+      return False
          
    def on_context_menu(self, point):
       # column 0 is the file name

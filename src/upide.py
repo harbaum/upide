@@ -34,11 +34,25 @@ class Window(QMainWindow):
       super(Window, self).__init__()
 
       self.flags = flags
+
+      # try to load settings
+      self.settings = QSettings('upide', 'settings')
+      
       self.initUI()
       app.aboutToQuit.connect(self.on_exit)
       self.sysname = None
 
    def on_exit(self):
+      # save window related settings
+      self.settings.setValue('window_size', self.size())
+      self.settings.setValue('window_position', self.pos())
+      self.settings.setValue('window_hsplitter', self.hsplitter.saveState())
+      self.settings.setValue('window_vsplitter', self.vsplitter.saveState())
+      
+      # save info about open editors
+      self.settings.setValue('editor_open', self.editors.getAll())
+      self.settings.setValue('editor_current', self.editors.get_current())
+      
       self.board.close()
 
    def closeEvent(self, event):
@@ -539,8 +553,8 @@ class Window(QMainWindow):
             self.start_rescan()
 
    def mainWidget(self):
-      vsplitter = QSplitter(Qt.Vertical)      
-      hsplitter = QSplitter(Qt.Horizontal)
+      self.vsplitter = QSplitter(Qt.Vertical)      
+      self.hsplitter = QSplitter(Qt.Horizontal)
 
       # add stuff here
       self.fileview = FileView()
@@ -558,9 +572,9 @@ class Window(QMainWindow):
       self.fileview.restore.connect(self.on_restore)
       self.fileview.file_import.connect(self.on_file_import)
       self.fileview.file_export.connect(self.on_file_export)
-      hsplitter.addWidget(self.fileview)
-      hsplitter.setStretchFactor(0, 1)
-
+      self.hsplitter.addWidget(self.fileview)
+      self.hsplitter.setStretchFactor(0, 1)
+      
       self.editors = Editors()
       self.editors.run.connect(self.on_run)
       self.editors.save.connect(self.on_save)
@@ -568,20 +582,20 @@ class Window(QMainWindow):
       self.editors.closed.connect(self.fileview.on_editor_closed)
       self.editors.changed.connect(self.fileview.select)
       self.fileview.selection_changed.connect(self.editors.on_select)
-      hsplitter.addWidget(self.editors)
-      hsplitter.setStretchFactor(1, 3)
+      self.hsplitter.addWidget(self.editors)
+      self.hsplitter.setStretchFactor(1, 3)
 
-      vsplitter.addWidget(hsplitter)
-      vsplitter.setStretchFactor(0, 10)
+      self.vsplitter.addWidget(self.hsplitter)
+      self.vsplitter.setStretchFactor(0, 10)
 
       # the console is at the bottom
       self.console = Console()
       self.console.interact.connect(self.on_console_interact)
       
-      vsplitter.addWidget(self.console)
-      vsplitter.setStretchFactor(1, 1)
-      
-      return vsplitter
+      self.vsplitter.addWidget(self.console)
+      self.vsplitter.setStretchFactor(1, 1)
+
+      return self.vsplitter
 
    def on_repl_done(self, status, msg=""):
       # interactive mode has ended (or failed to enter)
@@ -607,18 +621,51 @@ class Window(QMainWindow):
    def status(self, str=""):
       self.statusBar().showMessage(str);      
 
-   def on_listdir(self, success, files=None):
+   def on_all_loaded(self):      
       # re-enable UI
       self.on_board_request(False)
       self.console.set_button(True)
+
+   def on_loaded(self, success, result=None):
+      # open editor window for this file
       if success:
-         self.fileview.set(files)      
+         self.editors.new(result["name"], result["code"])
+         self.open_next_file(result["filelist"])
+      else:
+         self.on_all_loaded()         
+      
+   def open_next_file(self, filelist):
+      # no more files to load?
+      if not filelist:
+         self.on_all_loaded()
+         # bring same editor window to front as previously
+         self.editors.on_select(self.settings.value('editor_current'))
+         return
+            
+      # try to open first file in list
+      size = self.fileview.get_file_size(filelist[0])
+      if size == None:
+         self.on_all_loaded()
+         return
+
+      self.board.cmd(Board.GET_FILE, self.on_loaded, { "name": filelist[0],
+                   "size": size, "filelist": filelist[1:], "quiet": True } )
+         
+   def on_listdir(self, success, files=None):
+      if success:
+         self.fileview.set(files)
+         
+         # try to restore all previously open files
+         self.open_next_file(self.settings.value('editor_open'))
       
    def on_version(self, success, version):
       # enable soft reset unless some LEGO device was detected. The reboot of the
       # LEGO firmware does not work properly if the device is rebooted in raw_repl
       if not "lego" in version['nodename'].lower():
          self.board.set_soft_reset(True)
+      
+      # save last successfully used port in settings
+      self.settings.setValue('port', self.board.getPort())
       
       self.status(self.tr("{0} connected, MicroPython V{1} on {2}").format(self.board.getPort(), version['release'], version['nodename']));
       self.fileview.sysname(version['nodename'])
@@ -878,6 +925,16 @@ class Window(QMainWindow):
       # start scanning for board
       self.progress(False)
       self.console.set_button(None)
+
+      # restore window position, size and splitter settings
+      try:
+         self.resize(self.settings.value('window_size'))
+         self.move(self.settings.value('window_position'))
+         self.hsplitter.restoreState(self.settings.value('window_hsplitter'))
+         self.vsplitter.restoreState(self.settings.value('window_vsplitter'))
+      except:
+         pass
+         
       self.show()
 
       # scan if the user isn't suppressing this
@@ -885,13 +942,14 @@ class Window(QMainWindow):
          # ask user for port
          self.timer = QTimer(self)
          self.timer.singleShot(100, self.open_port_dialog)
-      #if "pybricks_ble" in self.flags:
-      #   import pybricks_ble
-      #   self.pybricks = pybricks_ble.Pybricks()
       else:
          self.on_board_request(True)
-         self.board.cmd(Board.SCAN, self.on_scan_result)
-    
+
+         # scan for device. Search first on the port that was successful
+         # on a previous run
+         self.board.cmd(Board.SCAN, self.on_scan_result,
+                  { "port": self.settings.value('port') } )
+                        
 if __name__ == '__main__':
    # get own name. If name contains "noscan" then don't do
    # a automatic scan but ask for a port instead

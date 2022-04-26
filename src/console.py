@@ -268,6 +268,9 @@ class Console(QPlainTextEdit):
             msg = msg.replace('\r', '').replace('\x04', '')  # filter out \r and \x04
             self.append(msg)
         except Exception as e:
+            # TODO: The buffer contents may be totally broken. So putting
+            # everything back into the buffer for next time may make everything
+            # fail over and over again            
             print("EX", str(e))
             self.buffer = b
 

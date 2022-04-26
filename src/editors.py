@@ -40,6 +40,22 @@ class EditorTabs(QTabWidget):
 
         return None
 
+    def getCurrent(self):
+        if not self.currentWidget():
+            return None
+
+        if not hasattr(self.currentWidget(), "name"):
+            return None
+        
+        return self.currentWidget().name
+    
+    def getAll(self):
+        all = [ ]
+        for i in range(self.count()):
+            if hasattr(self.widget(i), "name"):
+                all.append(self.widget(i).name)
+        return all
+    
     def closeAll(self):
         self.clear()
         self.stack.show(False)
@@ -259,6 +275,9 @@ class Editors(QStackedWidget):
             # show the info label
             self.setCurrentIndex(0)
 
+    def get_current(self):
+        return self.tabs.getCurrent()
+            
     def highlight(self, name, line, message):
         tab = self.tabs.get_index_by_file(name)
         if tab is not None:
@@ -295,6 +314,9 @@ class Editors(QStackedWidget):
 
     def closeAll(self):
         self.tabs.closeAll()
+
+    def getAll(self):
+        return self.tabs.getAll()
         
     def close(self, name):
         tab = self.tabs.get_index_by_file(name)
@@ -326,6 +348,8 @@ class Editors(QStackedWidget):
             self.changed.emit(self.tabs.widget(tab).name)
         
     def on_select(self, name):
+        if not name: return
+        
         # user has selected a different file in the fileview. Raise
         # the matching editor if it exists
         tab = self.tabs.get_index_by_file(name)

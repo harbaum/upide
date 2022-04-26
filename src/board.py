@@ -61,7 +61,8 @@ class Board(QObject):
       self.soft_reset = False  # disable by default, enable if no LEGO device is detected
 
    def set_soft_reset(self, mode):
-      self.soft_reset = mode
+      # self.soft_reset = mode
+      pass
       
    def send_console(self, str):
       self.queue.put( ( "console",  str ) )
@@ -199,10 +200,25 @@ class Board(QObject):
       if console_data:
          self.console.emit(console_data)
 
-   def scan(self):
+   def scan(self, port = None):
       ports = serial.tools.list_ports.comports()
+
+      # if the given port is in the list, then move it
+      # to the begin of the list to probe it first
+
+      # check if port is in list of port devices and prepend it
+      ports_sorted = [ ]
+      for p in ports:
+         if port == p.device:
+            ports_sorted.append(p)
+
+      # append all other devices
+      for p in ports:
+         if port != p.device:
+            ports_sorted.append(p)
+
       # probe all ports in background thread
-      self.do_in_thread(self.func_probe_all, ( ports, ))
+      self.do_in_thread(self.func_probe_all, ( ports_sorted, ))
       
    def reply_handle_line_ast(self, line = None):
       if line != None:
@@ -320,7 +336,8 @@ class Board(QObject):
       
    def get(self, name, size, reply_parms):
       self.progress.emit(0)
-      self.status.emit(self.tr("Reading {}".format(name.split("/")[-1])))
+      if not "quiet" in reply_parms:
+         self.status.emit(self.tr("Reading {}".format(name.split("/")[-1])))
       self.do_in_thread(self.func_get, ( name, size, reply_parms ) )
        
    def func_put(self, all_data, dest, chunk_size=256):
@@ -481,7 +498,7 @@ class Board(QObject):
       self.cb = cb   # save callback for later usage
       
       if cmd == Board.SCAN:
-         self.scan()
+         self.scan(parms["port"])
       
       elif cmd == Board.GET_VERSION:         
          self.version()
