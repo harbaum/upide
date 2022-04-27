@@ -179,7 +179,7 @@ class CssHighlighter(Highlighter):
             'comment': Highlighter.format('darkRed'),
             'string': Highlighter.format('darkMagenta'),
             'numbers': Highlighter.format('darkGreen'),
-            'names': Highlighter.format('darkMagenta'),
+            'names': Highlighter.format('darkBlue'),
         }
 
         UNITS = r'cm|mm|in|px|pt|pc|em|ex|ch|rem|vw|vh|vmin|vmax|%|s'
@@ -204,6 +204,96 @@ class CssHighlighter(Highlighter):
             (r'//.*$', 0, STYLES['comment']),
         ]
         
+        self.install_rules(rules)
+
+        # special multiline rules. The single line case is covered elsewhere
+        self.multiline = {
+            # /* comment */
+            1: { "start": (QRegExp(r'/\*.*$'),0), "end": (QRegExp(r'^.*\*/'),0),
+                 "style": STYLES["comment"] },
+            }
+        
+class JsHighlighter(Highlighter):
+    def __init__( self, parent):
+        super().__init__( parent )
+
+        STYLES = {
+            'comment': Highlighter.format('darkRed'),
+            'operator': Highlighter.format('darkRed'),
+            'brace': Highlighter.format('#404040'),
+            'string': Highlighter.format('darkMagenta'),
+            'numbers': Highlighter.format('darkGreen'),
+            'keyword': Highlighter.format('darkBlue'),
+            'funcclass': Highlighter.format('darkcyan'),
+            'this': Highlighter.format('black', 'italic'),
+        }
+
+        keywords = [
+            "await", "break", "case", "catch", "class",
+            "const", "continue", "debugger", "default",
+            "delete", "do", "else", "enum",
+	    "export", "extends", "false",
+	    "finally", "for", "function",
+	    "if", "implements", "import", "in",
+	    "instanceof", "interface",
+            "let", "new", "null", "package",
+	    "private", "protected", "public", "return",
+	    "super", "switch", "static",
+	    "throw", "try", "true", "typeof",
+	    "var", "void", "while", "with",
+            "yield" ]
+					 
+        # javascript operators
+        operators = [
+            '=',
+            # Comparison
+            '==', '!=', '<', '<=', '>', '>=',
+            # Arithmetic
+            '\+', '-', '\*', '/', '//', '\%', '\*\*',
+            # In-place
+            '\+=', '-=', '\*=', '/=', '\%=',
+            # Bitwise
+            '\^', '\|', '\&', '\~', '>>', '<<',
+        ]
+        
+        # braces
+        braces = [
+            '\{', '\}', '\(', '\)', '\[', '\]',
+        ]
+       
+        rules = [ ]
+        rules += [
+            (r'\bthis\b', 0, STYLES['this']),
+
+            # 'def' followed by an identifier
+            (r'\bfunction\b\s*(\w+)\b', 1, STYLES['funcclass']),
+            # 'class' followed by an identifier
+            (r'\bclass\b\s*(\w+)\b', 1, STYLES['funcclass']),
+            
+            # Double-quoted string, possibly containing escape sequences
+            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, STYLES['string']),
+            # Single-quoted string, possibly containing escape sequences
+            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, STYLES['string']),
+
+            # Numeric literals
+            (r'\b[+-]?[0-9]+[lL]?\b', 0, STYLES['numbers']),
+            (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, STYLES['numbers']),
+            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, STYLES['numbers']),
+            
+            # single line /* */ comment
+            (r'/\*.*\*/', 0, STYLES['comment']),
+            # // comment
+            (r'//.*$', 0, STYLES['comment']),
+        ]
+
+        # Keyword, operator, and brace rules
+        rules += [(r'\b%s\b' % w, 0, STYLES['keyword'])
+                  for w in keywords]
+        rules += [(r'%s' % o, 0, STYLES['operator'])
+                  for o in operators]
+        rules += [(r'%s' % b, 0, STYLES['brace'])
+                  for b in braces]
+   
         self.install_rules(rules)
 
         # special multiline rules. The single line case is covered elsewhere
@@ -430,6 +520,8 @@ class CodeEditor(QPlainTextEdit):
             self.highlighter = HtmlHighlighter(self.document())
         elif self.isCss():
             self.highlighter = CssHighlighter(self.document())
+        elif self.isJs():
+            self.highlighter = JsHighlighter(self.document())
 
         # overlay run button
         if self.isPython():
@@ -474,6 +566,9 @@ class CodeEditor(QPlainTextEdit):
 
     def isCss(self):
         return self.name.split(".")[-1].lower() in [ "css" ]
+
+    def isJs(self):
+        return self.name.split(".")[-1].lower() in [ "js" ]
 
     def isModified(self):
         return self.code_is_modified
