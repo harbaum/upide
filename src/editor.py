@@ -1,7 +1,7 @@
 #
 # editor.py
 # 
-# Copyright (C) 2021 Till Harbaum <till@harbaum.org>
+# Copyright (C) 2021-2022 Till Harbaum <till@harbaum.org>
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -44,101 +44,175 @@ class Highlighter(QSyntaxHighlighter):
    
         return _format
 
-class HtmlHighlighter(Highlighter):
-    # https://evileg.com/en/post/218/
-    def __init__( self, parent):
-        super().__init__( parent )
+    def install_rules(self, rules):
+        # make non-greedy rules
+        self.rules = [ ]
+        for r in rules:
+            rx = QRegExp(r[0])
+            rx.setMinimal(True)  # make rule non-greedy
+            self.rules.append((rx, r[1], r[2]))
 
-        # Syntax styles that can be shared by all languages
-        STYLES = {
-            'keyword': Highlighter.format('darkBlue'),
-            'operator': Highlighter.format('darkRed'),
-            'brace': Highlighter.format('#404040'),
-            'tagmark': Highlighter.format('#808080'),
-            'string': Highlighter.format('darkMagenta'),
-            'comment': Highlighter.format('darkRed'),
-            'attribute': Highlighter.format('brown'),
-            'numbers': Highlighter.format('darkGreen'),
-            'heading': Highlighter.format('darkGreen', 'underline'),
-        }
-
-        keywords = [ "html", "head", "style", "body", "h[0-9]", "script", "div", "canvas" ]
-    
-        rules = [ ]
-        rules += [
-            ( r'[<>]', 0, (0,0), STYLES['tagmark'] ),
-            ( r'<!', 0, (0,0), STYLES['tagmark'] ),
-            ( r'</', 0, (0,0), STYLES['tagmark'] ),
-            ( r'/>', 0, (0,0), STYLES['tagmark'] ),
-            
-            # Numeric literals
-            (r'\b[+-]?[0-9]+[lL]?\b', 0, (0,0), STYLES['numbers']),
-            (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, (0,0), STYLES['numbers']),
-            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, (0,0), STYLES['numbers']),
-            
-            # Double-quoted string, possibly containing escape sequences
-            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, (0,0), STYLES['string']),
-            # Single-quoted string, possibly containing escape sequences
-            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, (0,0), STYLES['string']),
-
-            ( r"<!\bDOCTYPE\b.*>", 0, (0,0), STYLES['comment']),
-            
-            ( r"\b[a-zA-Z_][a-zA-Z_0-9\.]*\b\s*=", 0, (0,1), STYLES['attribute']),
-
-            # html heading
-            ( r"<h([0-9])>.*</h\1>", 0, (4,5), STYLES['heading']),
-            ]
-
-        # add opening rules
-        rules += [(r'<\b%s\b' % w, 0, (1,0), STYLES['keyword']) for w in keywords]
-        # add closing rules
-        rules += [(r'</\b%s\b' % w, 0, (2,0), STYLES['keyword']) for w in keywords]
-        
-        self.rules = [(QRegExp(pat), index, skip, fmt)
-                      for (pat, index, skip, fmt) in rules]
-
-        self.comment_start = ( QRegExp(r'<!--.*$'), STYLES["comment"])
-        self.comment_end = ( QRegExp(r'-->'), STYLES["comment"])
-        self.comment_single = ( QRegExp(r'<!--.*-->'), STYLES["comment"])
-        
     def highlightBlock(self, text):
-        for expression, nth, skip, format in self.rules:
+        # first check for any closing multilines
+        start = 0
+        
+        # check if previous line was the start of a multiline item
+        state = self.previousBlockState()
+        if state > 0:
+            multiline = self.multiline[state]            
+            expression = multiline["end"][0]
+            nth = multiline["end"][1]
+            # check if comment ends here
             index = expression.indexIn(text, 0)
+            if index >= 0:
+                # yes, it ends here. format it
+                index = expression.pos(nth)
+                length = len(expression.cap(nth))
+                self.setFormat(index, length, multiline["style"])
+                start = index + length
+            else:
+                # doesn't end. format entire line and set comment state (1)
+                self.setFormat(0, len(text), multiline["style"])
+                self.setCurrentBlockState(state)  # continue multiline
+                return
+        
+        for expression, nth, format in self.rules:
+            index = expression.indexIn(text, start)
             # if index >= 0:
             while index >= 0:
                 # We actually want the index of the nth match
                 index = expression.pos(nth)
                 length = len(expression.cap(nth))
-                self.setFormat(index+skip[0], length-skip[0]-skip[1], format)
+                self.setFormat(index, length, format)
                 index = expression.indexIn(text, index + length)
   
         self.setCurrentBlockState(0)
 
-        # check if previous line was the start of a comment
-        if self.previousBlockState() == 1:
-            # check if comment ends here
-            index = self.comment_end[0].indexIn(text, 0)
-            if index >= 0:
-                # yes, it ends here. format it
-                self.setFormat(index, len(self.comment_end[0].cap()), self.comment_end[1])
-            else:
-                # doesn't end. format entire line and set comment state
-                self.setFormat(0, len(text), self.comment_end[1])
-                self.setCurrentBlockState(1)  # continue to mark as "in comment"
+        # check for start of (multiline) comments
+        for m in self.multiline:
+            multiline = self.multiline[m]
+            expression, nth =  multiline["start"]
             
-        # check for start of (multiline) comments        
-        if self.comment_start[0].indexIn(text, 0) >= 0:
-            # check if the comment ends here
-            index = self.comment_single[0].indexIn(text, 0)
-            if index >= 0:
-                # format the whole comment
-                self.setFormat(index, len(self.comment_single[0].cap()), self.comment_single[1])
-            else:
-                # nope, just the start comment
-                index = self.comment_start[0].indexIn(text, 0)
-                self.setFormat(index, len(self.comment_start[0].cap()), self.comment_start[1])
-                self.setCurrentBlockState(1)  # mark as "in comment"
+            if expression.indexIn(text, 0) >= 0:
+                # check if the multiline also ends here
+                if multiline["end"][0].indexIn(text, 0) < 0:
+                    # nope, just the start
+                    index = expression.pos(nth)
+                    self.setFormat(index, len(expression.cap(nth)), multiline["style"])
+                    self.setCurrentBlockState(m)  # mark as multiline
 
+class HtmlHighlighter(Highlighter):
+    def __init__( self, parent):
+        super().__init__( parent )
+
+        STYLES = {
+            'keyword': Highlighter.format('Blue'),
+            'tagmark': Highlighter.format('Grey'),
+            'string': Highlighter.format('darkMagenta'),
+            'comment': Highlighter.format('darkRed'),
+            'attribute': Highlighter.format('brown'),
+            'numbers': Highlighter.format('darkGreen'),
+            'heading': Highlighter.format('darkGreen', 'underline'),
+            'title': Highlighter.format('darkGreen', 'bold underline' ),
+            'alien': Highlighter.format('Grey', 'italic' ),
+        }
+
+        rules = [ ]
+        rules += [
+            ( r'[<>]', 0, STYLES['tagmark'] ),
+            ( r'<!', 0, STYLES['tagmark'] ),
+            ( r'</', 0, STYLES['tagmark'] ),
+            ( r'/>', 0, STYLES['tagmark'] ),
+            
+            # Numeric literals
+            (r'\b[+-]?[0-9]+\b', 0, STYLES['numbers']),
+            (r'\b[+-]?0[xX][0-9A-Fa-f]+\b', 0, STYLES['numbers']),
+            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?\b', 0, STYLES['numbers']),
+            
+            # Double-quoted string, possibly containing escape sequences
+            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, STYLES['string']),
+            # Single-quoted string, possibly containing escape sequences
+            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, STYLES['string']),
+
+            ( r"<!\bDOCTYPE\b.*>", 0, STYLES['comment']),
+
+            # attributes
+            ( r"\b([a-zA-Z_][a-zA-Z_0-9\.]*)\b\s*=", 1, STYLES['attribute']),
+
+            # single line comments, scripts, styles
+            ( r"<!--[^>]*-->", 0, STYLES["comment"]),
+            ( r"<script[^>]*>(.*)</script[^>]*>", 1, STYLES["alien"]),
+            ( r"<style[^>]*>(.*)</style[^>]*>", 1, STYLES["alien"]),
+            
+            # heading text
+            ( r"<h([0-9])[^>]*>(.*)</h\1>", 2, STYLES['heading']),
+            
+            # title
+            ( r"<title[^>]*>(.*)</title>", 1, STYLES['title']),
+
+            # add opening rule
+            (r'<\b([a-zA-Z_][a-zA-Z_0-9\.]*)\b[^>]*>', 1, STYLES['keyword']),
+            # add closing rule
+            (r'</\b([a-zA-Z_][a-zA-Z_0-9\.]*)\b[^>]*>', 1, STYLES['keyword']),
+        ]
+
+        self.install_rules(rules)
+
+        # special multiline rules. The single line case is covered elsewhere
+        self.multiline = {
+            # <!-- comment -->
+            1: { "start": (QRegExp(r'<!--.*$'),0), "end": (QRegExp(r'^.*-->'),0),
+                 "style": STYLES["comment"] },
+            # <script> </script>
+            2: { "start": (QRegExp(r'<script[^>]*>(.*)$'),1), "end": (QRegExp(r'^(.*)</script[^>]*>'),1),
+                 "style": STYLES["alien"] },
+            # <style> </style>
+            3: { "start": (QRegExp(r'<style[^>]*>(.*)$'),1), "end": (QRegExp(r'^(.*)</style[^>]*>'),1),
+                 "style": STYLES["alien"] },
+            }
+        
+class CssHighlighter(Highlighter):
+    def __init__( self, parent):
+        super().__init__( parent )
+
+        STYLES = {
+            'comment': Highlighter.format('darkRed'),
+            'string': Highlighter.format('darkMagenta'),
+            'numbers': Highlighter.format('darkGreen'),
+            'names': Highlighter.format('darkMagenta'),
+        }
+
+        UNITS = r'cm|mm|in|px|pt|pc|em|ex|ch|rem|vw|vh|vmin|vmax|%|s'
+        
+        rules = [ ]
+        rules += [
+            # Double-quoted string, possibly containing escape sequences
+            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, STYLES['string']),
+            # Single-quoted string, possibly containing escape sequences
+            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, STYLES['string']),
+
+            # Numeric literals
+            (r'\b([+-]?[0-9]+)('+UNITS+r')?\b', 0, STYLES['numbers']),
+            (r'((\b[+-]?0[xX])|#)[0-9A-Fa-f]+\b', 0, STYLES['numbers']),
+            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?\b', 0, STYLES['numbers']),
+
+            (r'\b([\w-.]*)\s*:', 1, STYLES['names']),
+            
+            # single line /* */ comment
+            (r'/\*.*\*/', 0, STYLES['comment']),
+            # // comment
+            (r'//.*$', 0, STYLES['comment']),
+        ]
+        
+        self.install_rules(rules)
+
+        # special multiline rules. The single line case is covered elsewhere
+        self.multiline = {
+            # /* comment */
+            1: { "start": (QRegExp(r'/\*.*$'),0), "end": (QRegExp(r'^.*\*/'),0),
+                 "style": STYLES["comment"] },
+            }
+        
 class PythonHighlighter(Highlighter):
     # Python highlighting
     # https://wiki.python.org/moin/PyQt/Python%20syntax%20highlighting
@@ -176,7 +250,6 @@ class PythonHighlighter(Highlighter):
     def __init__( self, parent):
         super().__init__( parent )
 
-        # Syntax styles that can be shared by all languages
         STYLES = {
             'keyword': Highlighter.format('darkBlue'),
             'operator': Highlighter.format('darkRed'),
@@ -355,6 +428,8 @@ class CodeEditor(QPlainTextEdit):
             self.highlighter = PythonHighlighter(self.document())
         elif self.isHtml():
             self.highlighter = HtmlHighlighter(self.document())
+        elif self.isCss():
+            self.highlighter = CssHighlighter(self.document())
 
         # overlay run button
         if self.isPython():
@@ -389,11 +464,16 @@ class CodeEditor(QPlainTextEdit):
         self.code_is_modified = False
         self.textChanged.connect(self.on_edit)
 
+        self.setTabStopDistance(4 * self.fontMetrics().width(' ')) 
+            
     def isPython(self):
         return self.name.split(".")[-1].lower() in [ "py", "mpy" ]
         
     def isHtml(self):
         return self.name.split(".")[-1].lower() in [ "htm", "html" ]
+
+    def isCss(self):
+        return self.name.split(".")[-1].lower() in [ "css" ]
 
     def isModified(self):
         return self.code_is_modified

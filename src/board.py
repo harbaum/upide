@@ -498,7 +498,7 @@ class Board(QObject):
       self.cb = cb   # save callback for later usage
       
       if cmd == Board.SCAN:
-         self.scan(parms["port"])
+         self.scan(parms["port"] if parms and "port" in parms else None)
       
       elif cmd == Board.GET_VERSION:         
          self.version()
