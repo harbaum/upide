@@ -24,10 +24,15 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
+class MinimalRegExp(QRegExp):
+    def __init__(self, rule):
+        super().__init__(rule)
+        self.setMinimal(True)
+            
 class Highlighter(QSyntaxHighlighter):
     """ common highlighter class """
     
-    def format(color, style=''):
+    def style(color, style=''):
         """Return a QTextCharFormat with the given attributes.
              """
         _color = QColor()
@@ -43,440 +48,344 @@ class Highlighter(QSyntaxHighlighter):
             _format.setFontUnderline(True)
    
         return _format
+    
+    STYLES = {
+        # common styles
+        'comment': style('darkRed'),
+        'keyword': style('darkBlue'),
+        'string': style('darkMagenta'),
+        'number': style('darkGreen'),
 
-    def install_rules(self, rules):
-        # make non-greedy rules
-        self.rules = [ ]
-        for r in rules:
-            rx = QRegExp(r[0])
-            rx.setMinimal(True)  # make rule non-greedy
-            self.rules.append((rx, r[1], r[2]))
+        # styles not used by all highligters
+        'brace': style('#404040'), # Python, JS, HTML
+        'attribute': style('brown'), # HTML
+        'heading': style('darkGreen', 'underline'), # HTML
+        'title': style('darkGreen', 'bold underline' ), # HTML
+        'alien': style('Grey', 'italic' ), # HTML
+        'operator': style('darkRed'), # Python, JS
+        'funcclass': style('darkcyan'), # JS, Python (def)
+        'self': style('black', 'italic'), # Python, JS (this)
+    }
 
-    def highlightBlock(self, text):
-        # first check for any closing multilines
-        start = 0
+    def parse_rules(self, rules):
+        """ parse rules and make non-greedy regex from them """
+        return [(MinimalRegExp(pat), index, fmt) for (pat, index, fmt) in rules]
+
+    def parse_strings(self, strings):
+        """ parse string rules and make non-greedy regex from them """
+        return [ ( (MinimalRegExp(start[0]), start[1] ),
+                   (MinimalRegExp(end[0]) if end[0] else None, end[1] ),
+                   fmt, flags)
+                 for (start, end, fmt, flags) in strings]
+    
+    def handle_strings(self, text, skip):
+        """ check for string begins """        
+        first_match = None
         
-        # check if previous line was the start of a multiline item
+        # check for first string pattern to match, return None if none matches
+        for s in range(len(self.strings)):
+            expression = self.strings[s][0][0]      # start expression
+            nth = self.strings[s][0][1]             # start nth
+            index = expression.indexIn(text, skip)  # check for start rule
+            if index >= 0:
+                index = expression.pos(nth)         # same es indexIn if nth == 0
+                length = len(expression.cap(nth))
+                if not first_match or index < first_match[1]:
+                    first_match = ( s, index, length )
+
+        return first_match
+
+    def skip_string(self, text, rule, offset):
+        """ skip over a string. The start has been detected
+        now the end is being searched for """
+        
+        expression = self.strings[rule][1][0]   # end expression
+        if not expression: return None          # no expression at all
+        nth = self.strings[rule][1][1]
+        endmatch = expression.indexIn(text, offset, QRegExp.CaretAtOffset)
+        if endmatch < 0: return None            # no match
+        return ( expression.pos(nth), len(expression.cap(nth)) )
+    
+    def highlightBlock(self, text):
+        self.setCurrentBlockState(0)
+
+        string_areas = [ ]
+        offset = 0
+        
+        # handle multiline continuations
         state = self.previousBlockState()
         if state > 0:
-            multiline = self.multiline[state]            
-            expression = multiline["end"][0]
-            nth = multiline["end"][1]
-            # check if comment ends here
-            index = expression.indexIn(text, 0)
-            if index >= 0:
-                # yes, it ends here. format it
-                index = expression.pos(nth)
-                length = len(expression.cap(nth))
-                self.setFormat(index, length, multiline["style"])
-                start = index + length
-            else:
-                # doesn't end. format entire line and set comment state (1)
-                self.setFormat(0, len(text), multiline["style"])
-                self.setCurrentBlockState(state)  # continue multiline
+            rule = state - 1   # rules start with index 0
+            # check for multiline string end
+            skip = self.skip_string(text, rule, 0)  # returns (start, len) of end marker
+            if skip == None:
+                # no end here -> whole line is string and multiline continues
+                self.setFormat(0, len(text), self.strings[rule][2]) 
+                self.setCurrentBlockState(rule+1)
                 return
-        
+            else:
+                # multiline ends here
+                pindex, plength = skip   # start and length of end pattern                
+                pend = pindex if self.strings[rule][3] & 2 else pindex+plength                
+
+                self.setFormat(0, pend, self.strings[rule][2])
+                string_areas.append( (0, pend-1) )
+                    
+                offset = pindex + plength
+                
+        # first handle all string like patterns as the exclude their
+        # matches from further processing
+        s = self.handle_strings(text, offset)
+        while s:
+            rule, index, length = s
+            # found a string like pattern, try to find matching end in same line
+            skip = self.skip_string(text, rule, index + length)  # rule, index + length
+            # does string end match? -> multiline string
+            if skip == None:
+                # exclude start pattern of requested
+                if self.strings[rule][3] & 2: index += length
+
+                # format and mark as string
+                self.setFormat(index, len(text)-index, self.strings[rule][2])
+                string_areas.append( (index,len(text)-1) )
+
+                # not all strings can be multiline, flag bit 0 signals multiline
+                if self.strings[rule][3] & 1:
+                    self.setCurrentBlockState(rule+1)
+
+                s = None
+            else:
+                # string end does match -> single line string
+                pindex, plength = skip   # start and length of end pattern                
+
+                # exclude start and end pattern if requested
+                if self.strings[rule][3] & 2:
+                    self.setFormat(index+length, pindex-(index+length), self.strings[rule][2]) 
+                    string_areas.append( (index+length,pindex-1) )
+                else:
+                    self.setFormat(index, pindex+plength-index, self.strings[rule][2]) 
+                    string_areas.append( (index,pindex+plength-1) )
+
+                # check for further strings
+                s = self.handle_strings(text, pindex+plength)
+
+        # implement all regular patterns
         for expression, nth, format in self.rules:
-            index = expression.indexIn(text, start)
+            index = expression.indexIn(text, 0)
             # if index >= 0:
             while index >= 0:
                 # We actually want the index of the nth match
-                index = expression.pos(nth)
+                index = expression.pos(nth)              
                 length = len(expression.cap(nth))
-                self.setFormat(index, length, format)
+                # check if this is within a string and should thus
+                # be ignored
+                ok = True
+                for area in string_areas:
+                    if index+length > area[0] and index <= area[1]:
+                        ok = False
+
+                if ok: self.setFormat(index, length, format)
                 index = expression.indexIn(text, index + length)
   
-        self.setCurrentBlockState(0)
-
-        # check for start of (multiline) comments
-        for m in self.multiline:
-            multiline = self.multiline[m]
-            expression, nth =  multiline["start"]
-            
-            if expression.indexIn(text, 0) >= 0:
-                # check if the multiline also ends here
-                if multiline["end"][0].indexIn(text, 0) < 0:
-                    # nope, just the start
-                    index = expression.pos(nth)
-                    self.setFormat(index, len(expression.cap(nth)), multiline["style"])
-                    self.setCurrentBlockState(m)  # mark as multiline
-
 class HtmlHighlighter(Highlighter):
     def __init__( self, parent):
         super().__init__( parent )
 
-        STYLES = {
-            'keyword': Highlighter.format('Blue'),
-            'tagmark': Highlighter.format('Grey'),
-            'string': Highlighter.format('darkMagenta'),
-            'comment': Highlighter.format('darkRed'),
-            'attribute': Highlighter.format('brown'),
-            'numbers': Highlighter.format('darkGreen'),
-            'heading': Highlighter.format('darkGreen', 'underline'),
-            'title': Highlighter.format('darkGreen', 'bold underline' ),
-            'alien': Highlighter.format('Grey', 'italic' ),
-        }
-
-        rules = [ ]
-        rules += [
-            ( r'[<>]', 0, STYLES['tagmark'] ),
-            ( r'<!', 0, STYLES['tagmark'] ),
-            ( r'</', 0, STYLES['tagmark'] ),
-            ( r'/>', 0, STYLES['tagmark'] ),
-            
+        braces = [ '[<>]', '<!', '</', '/>' ]
+        
+        rules = [
             # Numeric literals
-            (r'\b[+-]?[0-9]+\b', 0, STYLES['numbers']),
-            (r'\b[+-]?0[xX][0-9A-Fa-f]+\b', 0, STYLES['numbers']),
-            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?\b', 0, STYLES['numbers']),
+            (r'\b[+-]?[0-9]+\b', 0, self.STYLES['number']),
+            (r'\b[+-]?0[xX][0-9A-Fa-f]+\b', 0, self.STYLES['number']),
+            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?\b', 0, self.STYLES['number']),
             
-            # Double-quoted string, possibly containing escape sequences
-            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, STYLES['string']),
-            # Single-quoted string, possibly containing escape sequences
-            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, STYLES['string']),
-
-            ( r"<!\bDOCTYPE\b.*>", 0, STYLES['comment']),
+            ( r"<!\bDOCTYPE\b.*>", 0, self.STYLES['comment']),
 
             # attributes
-            ( r"\b([a-zA-Z_][a-zA-Z_0-9\.]*)\b\s*=", 1, STYLES['attribute']),
+            ( r"\b([a-zA-Z_][a-zA-Z_0-9\.]*)\b\s*=", 1, self.STYLES['attribute']),
 
-            # single line comments, scripts, styles
-            ( r"<!--[^>]*-->", 0, STYLES["comment"]),
-            ( r"<script[^>]*>(.*)</script[^>]*>", 1, STYLES["alien"]),
-            ( r"<style[^>]*>(.*)</style[^>]*>", 1, STYLES["alien"]),
-            
             # heading text
-            ( r"<h([0-9])[^>]*>(.*)</h\1>", 2, STYLES['heading']),
+            ( r"<h([0-9])[^>]*>(.*)</h\1>", 2, self.STYLES['heading']),
             
             # title
-            ( r"<title[^>]*>(.*)</title>", 1, STYLES['title']),
+            ( r"<title[^>]*>(.*)</title>", 1, self.STYLES['title']),
 
             # add opening rule
-            (r'<\b([a-zA-Z_][a-zA-Z_0-9\.]*)\b[^>]*>', 1, STYLES['keyword']),
+            (r'<\b([a-zA-Z_][a-zA-Z_0-9\.]*)\b[^>]*>', 1, self.STYLES['keyword']),
             # add closing rule
-            (r'</\b([a-zA-Z_][a-zA-Z_0-9\.]*)\b[^>]*>', 1, STYLES['keyword']),
+            (r'</\b([a-zA-Z_][a-zA-Z_0-9\.]*)\b[^>]*>', 1, self.STYLES['keyword']),
         ]
 
-        self.install_rules(rules)
+        rules += [(r'%s' % b, 0, self.STYLES['brace'])
+                  for b in braces]
+        
+        self.rules = self.parse_rules(rules)
 
-        # special multiline rules. The single line case is covered elsewhere
-        self.multiline = {
+        # string/multiline patterns
+        self.strings = self.parse_strings( [
+            # "" and '' strings
+            ( (r'"', 0), (r'(?:^|[^\\])(")', 1), self.STYLES['string'], 0),
+            ( (r"'", 0), (r"(?:^|[^\\])(')", 1), self.STYLES['string'], 0),
             # <!-- comment -->
-            1: { "start": (QRegExp(r'<!--.*$'),0), "end": (QRegExp(r'^.*-->'),0),
-                 "style": STYLES["comment"] },
+            ( (r'<!--',0), (r'-->',0), self.STYLES["comment"], 1),
             # <script> </script>
-            2: { "start": (QRegExp(r'<script[^>]*>(.*)$'),1), "end": (QRegExp(r'^(.*)</script[^>]*>'),1),
-                 "style": STYLES["alien"] },
+            ( ('<script[^>]*>', 0), ('</script[^>]*>', 0), self.STYLES["alien"], 3 ),
             # <style> </style>
-            3: { "start": (QRegExp(r'<style[^>]*>(.*)$'),1), "end": (QRegExp(r'^(.*)</style[^>]*>'),1),
-                 "style": STYLES["alien"] },
-            }
+            ( ('<style[^>]*>', 0), ('</style[^>]*>', 0), self.STYLES["alien"], 3 ),
+        ] )
         
 class CssHighlighter(Highlighter):
     def __init__( self, parent):
         super().__init__( parent )
 
-        STYLES = {
-            'comment': Highlighter.format('darkRed'),
-            'string': Highlighter.format('darkMagenta'),
-            'numbers': Highlighter.format('darkGreen'),
-            'names': Highlighter.format('darkBlue'),
-        }
-
         UNITS = r'cm|mm|in|px|pt|pc|em|ex|ch|rem|vw|vh|vmin|vmax|%|s'
         
-        rules = [ ]
-        rules += [
-            # Double-quoted string, possibly containing escape sequences
-            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, STYLES['string']),
-            # Single-quoted string, possibly containing escape sequences
-            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, STYLES['string']),
-
+        rules = [
             # Numeric literals
-            (r'\b([+-]?[0-9]+)('+UNITS+r')?\b', 0, STYLES['numbers']),
-            (r'((\b[+-]?0[xX])|#)[0-9A-Fa-f]+\b', 0, STYLES['numbers']),
-            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?\b', 0, STYLES['numbers']),
+            (r'\b([+-]?[0-9]+)('+UNITS+r')?\b', 0, self.STYLES['number']),
+            (r'((\b[+-]?0[xX])|#)[0-9A-Fa-f]+\b', 0, self.STYLES['number']),
+            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?\b', 0, self.STYLES['number']),
 
-            (r'\b([\w-.]*)\s*:', 1, STYLES['names']),
+            (r'\b([\w-.]*)\s*:', 1, self.STYLES['keyword']),
             
             # single line /* */ comment
-            (r'/\*.*\*/', 0, STYLES['comment']),
+            (r'/\*.*\*/', 0, self.STYLES['comment']),
             # // comment
-            (r'//.*$', 0, STYLES['comment']),
+            (r'//.*$', 0, self.STYLES['comment']),
         ]
         
-        self.install_rules(rules)
+        self.rules = self.parse_rules(rules)
 
-        # special multiline rules. The single line case is covered elsewhere
-        self.multiline = {
-            # /* comment */
-            1: { "start": (QRegExp(r'/\*.*$'),0), "end": (QRegExp(r'^.*\*/'),0),
-                 "style": STYLES["comment"] },
-            }
+        # string patterns
+        self.strings = self.parse_strings( [
+            # "" string
+            ( (r'"', 0), (r'(?:^|[^\\])(")', 1), self.STYLES['string'], 0),
+            # '' string
+            ( (r"'", 0), (r"(?:^|[^\\])(')", 1), self.STYLES['string'], 0),
+            # // comment, not multiline capable
+            ( (r"//", 0), (None, 0), self.STYLES['comment'], 0),
+            # /* */ comment, multiline capable
+            ( (r"/\*", 0), (r"\*/", 0), self.STYLES['comment'], 1),
+        ] )
         
 class JsHighlighter(Highlighter):
     def __init__( self, parent):
         super().__init__( parent )
 
-        STYLES = {
-            'comment': Highlighter.format('darkRed'),
-            'operator': Highlighter.format('darkRed'),
-            'brace': Highlighter.format('#404040'),
-            'string': Highlighter.format('darkMagenta'),
-            'numbers': Highlighter.format('darkGreen'),
-            'keyword': Highlighter.format('darkBlue'),
-            'funcclass': Highlighter.format('darkcyan'),
-            'this': Highlighter.format('black', 'italic'),
-        }
-
         keywords = [
-            "await", "break", "case", "catch", "class",
-            "const", "continue", "debugger", "default",
-            "delete", "do", "else", "enum",
-	    "export", "extends", "false",
-	    "finally", "for", "function",
-	    "if", "implements", "import", "in",
-	    "instanceof", "interface",
-            "let", "new", "null", "package",
-	    "private", "protected", "public", "return",
-	    "super", "switch", "static",
-	    "throw", "try", "true", "typeof",
-	    "var", "void", "while", "with",
-            "yield" ]
+            "await", "break", "case", "catch", "class", "const", "continue",
+            "debugger", "default", "delete", "do", "else", "enum", "export",
+            "extends", "false", "finally", "for", "function", "if", "implements",
+            "import", "in", "instanceof", "interface", "let", "new", "null",
+            "package", "private", "protected", "public", "return", "super",
+            "switch", "static", "throw", "try", "true", "typeof", "var", "void",
+            "while", "with", "yield" ]
 					 
         # javascript operators
         operators = [
-            '=',
-            # Comparison
-            '==', '!=', '<', '<=', '>', '>=',
-            # Arithmetic
+            '=', '==', '!=', '<', '<=', '>', '>=',
             '\+', '-', '\*', '/', '//', '\%', '\*\*',
-            # In-place
             '\+=', '-=', '\*=', '/=', '\%=',
-            # Bitwise
-            '\^', '\|', '\&', '\~', '>>', '<<',
-        ]
+            '\^', '\|', '\&', '\~', '>>', '<<' ]
         
         # braces
-        braces = [
-            '\{', '\}', '\(', '\)', '\[', '\]',
-        ]
+        braces = [ '\{', '\}', '\(', '\)', '\[', '\]' ]
        
-        rules = [ ]
-        rules += [
-            (r'\bthis\b', 0, STYLES['this']),
+        rules = [
+            (r'\bthis\b', 0, self.STYLES['self']),
 
-            # 'def' followed by an identifier
-            (r'\bfunction\b\s*(\w+)\b', 1, STYLES['funcclass']),
+            # 'function' followed by an identifier
+            (r'\bfunction\b\s*(\w+)\b', 1, self.STYLES['funcclass']),
             # 'class' followed by an identifier
-            (r'\bclass\b\s*(\w+)\b', 1, STYLES['funcclass']),
+            (r'\bclass\b\s*(\w+)\b', 1, self.STYLES['funcclass']),
             
-            # Double-quoted string, possibly containing escape sequences
-            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, STYLES['string']),
-            # Single-quoted string, possibly containing escape sequences
-            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, STYLES['string']),
-
             # Numeric literals
-            (r'\b[+-]?[0-9]+[lL]?\b', 0, STYLES['numbers']),
-            (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, STYLES['numbers']),
-            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, STYLES['numbers']),
-            
-            # single line /* */ comment
-            (r'/\*.*\*/', 0, STYLES['comment']),
-            # // comment
-            (r'//.*$', 0, STYLES['comment']),
+            (r'\b[+-]?[0-9]+[lL]?\b', 0, self.STYLES['number']),
+            (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, self.STYLES['number']),
+            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, self.STYLES['number']),
         ]
 
         # Keyword, operator, and brace rules
-        rules += [(r'\b%s\b' % w, 0, STYLES['keyword'])
+        rules += [(r'\b%s\b' % w, 0, self.STYLES['keyword'])
                   for w in keywords]
-        rules += [(r'%s' % o, 0, STYLES['operator'])
+        rules += [(r'%s' % o, 0, self.STYLES['operator'])
                   for o in operators]
-        rules += [(r'%s' % b, 0, STYLES['brace'])
+        rules += [(r'%s' % b, 0, self.STYLES['brace'])
                   for b in braces]
    
-        self.install_rules(rules)
+        self.rules = self.parse_rules(rules)
 
-        # special multiline rules. The single line case is covered elsewhere
-        self.multiline = {
-            # /* comment */
-            1: { "start": (QRegExp(r'/\*.*$'),0), "end": (QRegExp(r'^.*\*/'),0),
-                 "style": STYLES["comment"] },
-            }
+        # string patterns
+        self.strings = self.parse_strings( [
+            # "" string
+            ( (r'"', 0), (r'(?:^|[^\\])(")', 1), self.STYLES['string'], 0),
+            # '' string
+            ( (r"'", 0), (r"(?:^|[^\\])(')", 1), self.STYLES['string'], 0),
+            # // comment, not multiline capable
+            ( (r"//", 0), (None, 0), self.STYLES['comment'], 0),
+            # /* */ comment, multiline capable
+            ( (r"/\*", 0), (r"\*/", 0), self.STYLES['comment'], 1),
+        ] )
         
 class PythonHighlighter(Highlighter):
-    # Python highlighting
-    # https://wiki.python.org/moin/PyQt/Python%20syntax%20highlighting
-
-    """Syntax highlighter for the Python language.
-       """
-
-    keywords = [
-        'and', 'assert', 'break', 'class', 'continue', 'def',
-        'del', 'elif', 'else', 'except', 'exec', 'finally',
-        'for', 'from', 'global', 'if', 'import', 'in',
-        'is', 'lambda', 'not', 'or', 'pass', 'print',
-        'raise', 'return', 'try', 'while', 'yield',
-        'None', 'True', 'False',
-    ]
-   
-    # Python operators
-    operators = [
-        '=',
-        # Comparison
-        '==', '!=', '<', '<=', '>', '>=',
-        # Arithmetic
-        '\+', '-', '\*', '/', '//', '\%', '\*\*',
-        # In-place
-        '\+=', '-=', '\*=', '/=', '\%=',
-        # Bitwise
-        '\^', '\|', '\&', '\~', '>>', '<<',
-    ]
-   
-    # Python braces
-    braces = [
-        '\{', '\}', '\(', '\)', '\[', '\]',
-    ]
-       
     def __init__( self, parent):
         super().__init__( parent )
-
-        STYLES = {
-            'keyword': Highlighter.format('darkBlue'),
-            'operator': Highlighter.format('darkRed'),
-            'brace': Highlighter.format('#404040'),
-            'defclass': Highlighter.format('darkcyan'),
-            'string': Highlighter.format('darkMagenta'),
-            'comment': Highlighter.format('darkRed'),
-            'self': Highlighter.format('black', 'italic'),
-            'numbers': Highlighter.format('darkGreen'),
-        }
+ 
+        keywords = [
+            'and', 'assert', 'break', 'class', 'continue', 'def',
+            'del', 'elif', 'else', 'except', 'exec', 'finally',
+            'for', 'from', 'global', 'if', 'import', 'in',
+            'is', 'lambda', 'not', 'or', 'pass', 'print',
+            'raise', 'return', 'try', 'while', 'yield',
+            'None', 'True', 'False' ]
+            
+        operators = [
+            '=', '==', '!=', '<', '<=', '>', '>=',
+            '\+', '-', '\*', '/', '//', '\%', '\*\*',
+            '\+=', '-=', '\*=', '/=', '\%=',
+            '\^', '\|', '\&', '\~', '>>', '<<' ]
         
-        # Multi-line strings (expression, flag, style)
-        self.tri_single = (QRegExp("'''"), 1, STYLES['string'])
-        self.tri_double = (QRegExp('"""'), 2, STYLES['string'])
-  
-        # Python keywords
-        rules = []
-        
-        # Keyword, operator, and brace rules
-        rules += [(r'\b%s\b' % w, 0, STYLES['keyword'])
-                  for w in PythonHighlighter.keywords]
-        rules += [(r'%s' % o, 0, STYLES['operator'])
-                  for o in PythonHighlighter.operators]
-        rules += [(r'%s' % b, 0, STYLES['brace'])
-                  for b in PythonHighlighter.braces]
-   
-        # All other rules
-        rules += [
+        braces = [ '\{', '\}', '\(', '\)', '\[', '\]' ]
+       
+        rules = [
             # 'self'
-            (r'\bself\b', 0, STYLES['self']),
+            (r'\bself\b', 0, self.STYLES['self']),
 
             # 'def' followed by an identifier
-            (r'\bdef\b\s*(\w+)', 1, STYLES['defclass']),
+            (r'\bdef\b\s*(\w+)\W', 1, self.STYLES['funcclass']),
             # 'class' followed by an identifier
-            (r'\bclass\b\s*(\w+)', 1, STYLES['defclass']),
+            (r'\bclass\b\s*(\w+)\W', 1, self.STYLES['funcclass']),
 
             # Numeric literals
-            (r'\b[+-]?[0-9]+[lL]?\b', 0, STYLES['numbers']),
-            (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, STYLES['numbers']),
-            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, STYLES['numbers']),
-            
-            # Double-quoted string, possibly containing escape sequences
-            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, STYLES['string']),
-            # Single-quoted string, possibly containing escape sequences
-            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, STYLES['string']),
-            
-            # From '#' until a newline
-            (r'#[^\n]*', 0, STYLES['comment']),
+            (r'\b[+-]?[0-9]+[lL]?\b', 0, self.STYLES['number']),
+            (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, self.STYLES['number']),
+            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, self.STYLES['number']),
         ]
-  
-        # Build a QRegExp for each pattern
-        self.rules = [(QRegExp(pat), index, fmt)
-                      for (pat, index, fmt) in rules]
+
+        # Keyword, operator, and brace rules
+        rules += [(r'\b%s\b' % w, 0, self.STYLES['keyword'])
+                  for w in keywords]
+        rules += [(r'%s' % o, 0, self.STYLES['operator'])
+                  for o in operators]
+        rules += [(r'%s' % b, 0, self.STYLES['brace'])
+                  for b in braces]
+            
+        self.rules = self.parse_rules(rules)
+        
+        # string patterns
+        self.strings = self.parse_strings( [
+            # Double-quoted comment or string
+            ( (r'"""', 0), (r'(?:^|[^\\])(""")', 1), self.STYLES['comment'], 1),
+            # end ", but not \", not multiline capable
+            ( (r'"', 0), (r'(?:^|[^\\])(")', 1), self.STYLES['string'], 0),
+            # Single-quoted comment or string
+            ( (r"'''", 0), (r"(?:^|[^\\])(''')", 1), self.STYLES['comment'], 1),
+            # end ', but not \', not multiline capable
+            ( (r"'", 0), (r"(?:^|[^\\])(')", 1), self.STYLES['string'], 0),
+            # regular # comments, not multiline capable
+            ( (r"#", 0), (None, 0), self.STYLES['comment'], 0),
+        ] )
     
-    def highlightBlock(self, text):
-        """Apply syntax highlighting to the given block of text.
-          """
-        self.tripleQuoutesWithinStrings = []
-        # Do other syntax formatting
-        for expression, nth, format in self.rules:
-            index = expression.indexIn(text, 0)
-            if index >= 0:
-                # if there is a string we check
-                # if there are some triple quotes within the string
-                # they will be ignored if they are matched again
-                if expression.pattern() in [r'"[^"\\]*(\\.[^"\\]*)*"', r"'[^'\\]*(\\.[^'\\]*)*'"]:
-                    innerIndex = self.tri_single[0].indexIn(text, index + 1)
-                    if innerIndex == -1:
-                        innerIndex = self.tri_double[0].indexIn(text, index + 1)
-
-                    if innerIndex != -1:
-                        tripleQuoteIndexes = range(innerIndex, innerIndex + 3)
-                        self.tripleQuoutesWithinStrings.extend(tripleQuoteIndexes)
-
-            while index >= 0:
-                # skipping triple quotes within strings
-                if index in self.tripleQuoutesWithinStrings:
-                    index += 1
-                    expression.indexIn(text, index)
-                    continue
-
-                # We actually want the index of the nth match
-                index = expression.pos(nth)
-                length = len(expression.cap(nth))
-                self.setFormat(index, length, format)
-                index = expression.indexIn(text, index + length)
-  
-        self.setCurrentBlockState(0)
-
-        # Do multi-line strings
-        in_multiline = self.match_multiline(text, *self.tri_single)
-        if not in_multiline:
-            in_multiline = self.match_multiline(text, *self.tri_double)
-
-    def match_multiline(self, text, delimiter, in_state, style):
-        """Do highlighting of multi-line strings. ``delimiter`` should be a
-          ``QRegExp`` for triple-single-quotes or triple-double-quotes, and
-          ``in_state`` should be a unique integer to represent the corresponding
-          state changes when inside those strings. Returns True if we're still
-          inside a multi-line string when this function is finished.
-          """
-        # If inside triple-single quotes, start at 0
-        if self.previousBlockState() == in_state:
-            start = 0
-            add = 0
-        # Otherwise, look for the delimiter on this line
-        else:
-            start = delimiter.indexIn(text)
-            # skipping triple quotes within strings
-            if start in self.tripleQuoutesWithinStrings:
-                return False
-            # Move past this match
-            add = delimiter.matchedLength()
-              
-        # As long as there's a delimiter match on this line...
-        while start >= 0:
-            # Look for the ending delimiter
-            end = delimiter.indexIn(text, start + add)
-            # Ending delimiter on this line?
-            if end >= add:
-                length = end - start + add + delimiter.matchedLength()
-                self.setCurrentBlockState(0)
-            # No; multi-line string
-            else:
-                self.setCurrentBlockState(in_state)
-                length = len(text) - start + add
-            # Apply formatting
-            self.setFormat(start, length, style)
-            # Look for the next match
-            start = delimiter.indexIn(text, start + length)
-              
-        # Return True if still inside a multi-line string, False otherwise
-        if self.currentBlockState() == in_state:
-            return True
-        else:
-            return False
-
 class LineNumberArea(QWidget):
     def __init__(self, editor):
         super().__init__(editor)
@@ -557,18 +466,24 @@ class CodeEditor(QPlainTextEdit):
         self.textChanged.connect(self.on_edit)
 
         self.setTabStopDistance(4 * self.fontMetrics().width(' ')) 
-            
+
+    def endsWith(self, exts):
+        return self.name.split(".")[-1].lower() in exts
+        
     def isPython(self):
-        return self.name.split(".")[-1].lower() in [ "py", "mpy" ]
+        return self.endsWith( [ "py", "mpy" ] )
         
     def isHtml(self):
-        return self.name.split(".")[-1].lower() in [ "htm", "html" ]
+        return self.endsWith( [ "htm", "html" ] )
 
     def isCss(self):
-        return self.name.split(".")[-1].lower() in [ "css" ]
+        return self.endsWith( [ "css" ] )
 
     def isJs(self):
-        return self.name.split(".")[-1].lower() in [ "js" ]
+        return self.endsWith( [ "js" ] )
+
+    def isJson(self):
+        return self.endsWith( [ "json" ] )
 
     def isModified(self):
         return self.code_is_modified
