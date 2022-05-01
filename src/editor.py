@@ -81,7 +81,6 @@ class Highlighter(QSyntaxHighlighter):
     def handle_strings(self, text, skip):
         """ check for string begins """        
         first_match = None
-        
         # check for first string pattern to match, return None if none matches
         for s in range(len(self.strings)):
             expression = self.strings[s][0][0]      # start expression
@@ -142,17 +141,18 @@ class Highlighter(QSyntaxHighlighter):
             skip = self.skip_string(text, rule, index + length)  # rule, index + length
             # does string end match? -> multiline string
             if skip == None:
-                # exclude start pattern of requested
-                if self.strings[rule][3] & 2: index += length
-
-                # format and mark as string
-                self.setFormat(index, len(text)-index, self.strings[rule][2])
-                string_areas.append( (index,len(text)-1) )
-
-                # not all strings can be multiline, flag bit 0 signals multiline
+                # strings with no end on same line are ignored if they are not
+                # multiline capable
                 if self.strings[rule][3] & 1:
-                    self.setCurrentBlockState(rule+1)
+                
+                    # exclude start pattern of requested
+                    if self.strings[rule][3] & 2: index += length
 
+                    # format and mark as string
+                    self.setFormat(index, len(text)-index, self.strings[rule][2])
+                    string_areas.append( (index,len(text)-1) )
+
+                    self.setCurrentBlockState(rule+1)
                 s = None
             else:
                 # string end does match -> single line string
@@ -172,7 +172,6 @@ class Highlighter(QSyntaxHighlighter):
         # implement all regular patterns
         for expression, nth, format in self.rules:
             index = expression.indexIn(text, 0)
-            # if index >= 0:
             while index >= 0:
                 # We actually want the index of the nth match
                 index = expression.pos(nth)              
@@ -327,6 +326,35 @@ class JsHighlighter(Highlighter):
             ( (r"/\*", 0), (r"\*/", 0), self.STYLES['comment'], 1),
         ] )
         
+class JsonHighlighter(Highlighter):
+    def __init__( self, parent):
+        super().__init__( parent )
+
+        # braces
+        braces = [ '\{', '\}', '\(', '\)', '\[', '\]' ]
+       
+        rules = [
+            # Numeric literals
+            (r'\b[+-]?[0-9]+[lL]?\b', 0, self.STYLES['number']),
+            (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, self.STYLES['number']),
+            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, self.STYLES['number']),
+        ]
+
+        rules += [(r'%s' % b, 0, self.STYLES['brace'])
+                  for b in braces]
+   
+        self.rules = self.parse_rules(rules)
+
+        # string patterns
+        self.strings = self.parse_strings( [
+            # "" string followed by :
+            ( (r'(".*)"\s*:', 1), (r'"', 0), self.STYLES['keyword'], 0),
+            # "" string
+            ( (r'"', 0), (r'(?:^|[^\\])(")', 1), self.STYLES['string'], 0),
+            # '' string
+            ( (r"'", 0), (r"(?:^|[^\\])(')", 1), self.STYLES['string'], 0),
+        ] )
+        
 class PythonHighlighter(Highlighter):
     def __init__( self, parent):
         super().__init__( parent )
@@ -431,6 +459,8 @@ class CodeEditor(QPlainTextEdit):
             self.highlighter = CssHighlighter(self.document())
         elif self.isJs():
             self.highlighter = JsHighlighter(self.document())
+        elif self.isJson():
+            self.highlighter = JsonHighlighter(self.document())
 
         # overlay run button
         if self.isPython():
