@@ -16,9 +16,6 @@
 # Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-# todo:
-# - fix search
-
 import sys, os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -57,7 +54,7 @@ class Highlighter(QSyntaxHighlighter):
         'number': style('darkGreen'),
 
         # styles not used by all highligters
-        'brace': style('#404040'), # Python, JS, HTML
+        'brace': style('#404040'), # Python, JS, HTML, JSON
         'attribute': style('brown'), # HTML
         'heading': style('darkGreen', 'underline'), # HTML
         'title': style('darkGreen', 'bold underline' ), # HTML
@@ -69,7 +66,7 @@ class Highlighter(QSyntaxHighlighter):
 
     def parse_rules(self, rules):
         """ parse rules and make non-greedy regex from them """
-        return [(MinimalRegExp(pat), index, fmt) for (pat, index, fmt) in rules]
+        self.rules = [(MinimalRegExp(pat), index, fmt) for (pat, index, fmt) in rules]
 
     def parse_strings(self, strings):
         """ parse string rules and make non-greedy regex from them """
@@ -141,18 +138,16 @@ class Highlighter(QSyntaxHighlighter):
             skip = self.skip_string(text, rule, index + length)  # rule, index + length
             # does string end match? -> multiline string
             if skip == None:
-                # strings with no end on same line are ignored if they are not
-                # multiline capable
+                # exclude start pattern of requested
+                if self.strings[rule][3] & 2: index += length
+
+                # format and mark as string
+                self.setFormat(index, len(text)-index, self.strings[rule][2])
+                string_areas.append( (index,len(text)-1) )
+
                 if self.strings[rule][3] & 1:
-                
-                    # exclude start pattern of requested
-                    if self.strings[rule][3] & 2: index += length
-
-                    # format and mark as string
-                    self.setFormat(index, len(text)-index, self.strings[rule][2])
-                    string_areas.append( (index,len(text)-1) )
-
                     self.setCurrentBlockState(rule+1)
+                    
                 s = None
             else:
                 # string end does match -> single line string
@@ -190,8 +185,6 @@ class HtmlHighlighter(Highlighter):
     def __init__( self, parent):
         super().__init__( parent )
 
-        braces = [ '[<>]', '<!', '</', '/>' ]
-        
         rules = [
             # Numeric literals
             (r'\b[+-]?[0-9]+\b', 0, self.STYLES['number']),
@@ -216,9 +209,9 @@ class HtmlHighlighter(Highlighter):
         ]
 
         rules += [(r'%s' % b, 0, self.STYLES['brace'])
-                  for b in braces]
+                  for b in [ '[<>]', '<!', '</', '/>' ]]
         
-        self.rules = self.parse_rules(rules)
+        self.parse_rules(rules)
 
         # string/multiline patterns
         self.strings = self.parse_strings( [
@@ -253,7 +246,7 @@ class CssHighlighter(Highlighter):
             (r'//.*$', 0, self.STYLES['comment']),
         ]
         
-        self.rules = self.parse_rules(rules)
+        self.parse_rules(rules)
 
         # string patterns
         self.strings = self.parse_strings( [
@@ -287,9 +280,6 @@ class JsHighlighter(Highlighter):
             '\+=', '-=', '\*=', '/=', '\%=',
             '\^', '\|', '\&', '\~', '>>', '<<' ]
         
-        # braces
-        braces = [ '\{', '\}', '\(', '\)', '\[', '\]' ]
-       
         rules = [
             (r'\bthis\b', 0, self.STYLES['self']),
 
@@ -310,9 +300,9 @@ class JsHighlighter(Highlighter):
         rules += [(r'%s' % o, 0, self.STYLES['operator'])
                   for o in operators]
         rules += [(r'%s' % b, 0, self.STYLES['brace'])
-                  for b in braces]
+                  for b in [ '\{', '\}', '\(', '\)', '\[', '\]' ] ]
    
-        self.rules = self.parse_rules(rules)
+        self.parse_rules(rules)
 
         # string patterns
         self.strings = self.parse_strings( [
@@ -330,9 +320,6 @@ class JsonHighlighter(Highlighter):
     def __init__( self, parent):
         super().__init__( parent )
 
-        # braces
-        braces = [ '\{', '\}', '\(', '\)', '\[', '\]' ]
-       
         rules = [
             # Numeric literals
             (r'\b[+-]?[0-9]+[lL]?\b', 0, self.STYLES['number']),
@@ -341,9 +328,9 @@ class JsonHighlighter(Highlighter):
         ]
 
         rules += [(r'%s' % b, 0, self.STYLES['brace'])
-                  for b in braces]
+                  for b in [ '\{', '\}', '\(', '\)', '\[', '\]' ] ]
    
-        self.rules = self.parse_rules(rules)
+        self.parse_rules(rules)
 
         # string patterns
         self.strings = self.parse_strings( [
@@ -373,8 +360,6 @@ class PythonHighlighter(Highlighter):
             '\+=', '-=', '\*=', '/=', '\%=',
             '\^', '\|', '\&', '\~', '>>', '<<' ]
         
-        braces = [ '\{', '\}', '\(', '\)', '\[', '\]' ]
-       
         rules = [
             # 'self'
             (r'\bself\b', 0, self.STYLES['self']),
@@ -391,14 +376,12 @@ class PythonHighlighter(Highlighter):
         ]
 
         # Keyword, operator, and brace rules
-        rules += [(r'\b%s\b' % w, 0, self.STYLES['keyword'])
-                  for w in keywords]
-        rules += [(r'%s' % o, 0, self.STYLES['operator'])
-                  for o in operators]
+        rules += [(r'\b%s\b' % w, 0, self.STYLES['keyword']) for w in keywords]
+        rules += [(r'%s' % o, 0, self.STYLES['operator']) for o in operators]
         rules += [(r'%s' % b, 0, self.STYLES['brace'])
-                  for b in braces]
+                  for b in [ '\{', '\}', '\(', '\)', '\[', '\]' ] ]
             
-        self.rules = self.parse_rules(rules)
+        self.parse_rules(rules)
         
         # string patterns
         self.strings = self.parse_strings( [
