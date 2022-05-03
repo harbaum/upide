@@ -58,9 +58,11 @@ class Board(QObject):
       self.timer.timeout.connect(self.on_timer)
       self.timer.start(20)  # poll at 50 Hz
 
-      self.soft_reset = False  # disable by default, enable if no LEGO device is detected
+      self.soft_reset = False  # disable by default, may be enabled if no LEGO device is detected
 
    def set_soft_reset(self, mode):
+      # completely disable this as several devices have complex boot.py which in turn results
+      # in half-booted setups as soft_reset executes this. This is e.g. true for LEGO Hubs
       # self.soft_reset = mode
       pass
       
