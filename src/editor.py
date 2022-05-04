@@ -347,11 +347,11 @@ class PythonHighlighter(Highlighter):
         super().__init__( parent )
  
         keywords = [
-            'and', 'assert', 'break', 'class', 'continue', 'def',
-            'del', 'elif', 'else', 'except', 'exec', 'finally',
-            'for', 'from', 'global', 'if', 'import', 'in',
-            'is', 'lambda', 'not', 'or', 'pass', 'print',
-            'raise', 'return', 'try', 'while', 'yield',
+            'and', 'as', 'assert', 'async', 'await', 'break', 'class',
+            'continue', 'def', 'del', 'elif', 'else', 'except',
+            'exec', 'finally', 'for', 'from', 'global', 'if',
+            'import', 'in', 'is', 'lambda', 'not', 'or', 'pass',
+            'print', 'raise', 'return', 'try', 'while', 'yield',
             'None', 'True', 'False' ]
             
         operators = [
@@ -682,7 +682,7 @@ class CodeEditor(QPlainTextEdit):
 
         block = self.firstVisibleBlock()
         blockNumber = block.blockNumber()
-        top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
+        top = int(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
         bottom = top + self.blockBoundingRect(block).height()
 
         # Just to make sure we use the right font
