@@ -325,7 +325,7 @@ class Window(QMainWindow):
 
       return True
 
-   def on_restore_file(self, success):
+   def on_restore_file(self, success, parms):
       if not success:
          self.restore_done(False)
          return
