@@ -682,7 +682,7 @@ class CodeEditor(QPlainTextEdit):
 
         block = self.firstVisibleBlock()
         blockNumber = block.blockNumber()
-        top = int(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
+        top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
         bottom = top + self.blockBoundingRect(block).height()
 
         # Just to make sure we use the right font
@@ -691,7 +691,7 @@ class CodeEditor(QPlainTextEdit):
             if block.isVisible() and (bottom >= event.rect().top()):
                 number = str(blockNumber + 1)
                 painter.setPen(Qt.black)
-                painter.drawText(0, top, self.lineNumberArea.width()-2, height,
+                painter.drawText(0, int(top), self.lineNumberArea.width()-2, height,
                                  Qt.AlignRight, number)
 
             block = block.next()
