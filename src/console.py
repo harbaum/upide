@@ -268,11 +268,26 @@ class Console(QPlainTextEdit):
             msg = msg.replace('\r', '').replace('\x04', '')  # filter out \r and \x04
             self.append(msg)
         except Exception as e:
-            # TODO: The buffer contents may be totally broken. So putting
-            # everything back into the buffer for next time may make everything
-            # fail over and over again            
-            print("EX", str(e))
-            self.buffer = b
+            # decoding failed, probably since the contents isn't valid utf-8
+            print("Console decoding failed #1", str(e))
+
+            # Check if the message can be decoded without the last character.
+            try:
+                msg = b[:-1].decode("utf-8")
+                msg = msg.replace('\r', '').replace('\x04', '')  # filter out \r and \x04
+                self.append(msg)
+                
+                self.buffer = b[-1]  # keep last byte in buffer
+            except Exception as e:
+                print("Console decoding failed #2", str(e))
+                # if that also fails, decode as ascii
+                try:                    
+                    msg = b.decode("iso-8859-1")
+                    msg = msg.replace('\r', '').replace('\x04', '')  # filter out \r and \x04
+                    self.append(msg)
+                except Exception as e:
+                    # and finally ignore everything ...
+                    print("Console decoding finally failed", str(e))
 
         # save cursor
         self.savedCursor = self.textCursor()
