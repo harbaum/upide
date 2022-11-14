@@ -202,7 +202,7 @@ class Editors(QStackedWidget):
 
         vbox.addStretch(1)
 
-        copyright = QLabel(self.tr("© 2021-2022 Till Harbaum <till@harbaum.org>"), vbox_w)
+        copyright = QLabel(self.tr("© 2021-2022 Till Harbaum &lt;till@harbaum.org&gt;"), vbox_w)
         copyright.setAlignment(Qt.AlignCenter)
         vbox.addWidget(copyright)
 
