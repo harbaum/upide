@@ -721,7 +721,7 @@ class CodeEditor(QPlainTextEdit):
             
         self.updateModifyState(False)
     
-    def highlight(self, line, msg = None):
+    def highlight(self, line, scroll_to = True, msg = None):
         self.error = None
         
         if line is None:
@@ -749,8 +749,9 @@ class CodeEditor(QPlainTextEdit):
         selection.cursor.movePosition(QTextCursor.Right, QTextCursor.KeepAnchor)
 
         # and scroll to error position
-        cursor = self.textCursor()
-        cursor.setPosition(blockPos)
-        self.setTextCursor(cursor)
+        if scroll_to:
+            cursor = self.textCursor()
+            cursor.setPosition(blockPos)
+            self.setTextCursor(cursor)
 
         self.setExtraSelections([selection])

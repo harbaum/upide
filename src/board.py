@@ -339,7 +339,7 @@ class Board(QObject):
    def get(self, name, size, reply_parms):
       self.progress.emit(0)
       if not "quiet" in reply_parms:
-         self.status.emit(self.tr("Reading {}".format(name.split("/")[-1])))
+         self.status.emit(self.tr("Reading {}").format(name.split("/")[-1]))
       self.do_in_thread(self.func_get, ( name, size, reply_parms ) )
        
    def func_put(self, all_data, dest, chunk_size=256):
@@ -369,7 +369,7 @@ class Board(QObject):
        
    def put(self, data, name):
       self.progress.emit(0)
-      self.status.emit(self.tr("Writing {}".format(name.split("/")[-1])))
+      self.status.emit(self.tr("Writing {}").format(name.split("/")[-1]))
       self.do_in_thread(self.func_put, ( data, name ))
 
    def func_run(self, name, code):
@@ -501,7 +501,7 @@ class Board(QObject):
       
       if cmd == Board.SCAN:
          self.scan(parms["port"] if parms and "port" in parms else None)
-      
+
       elif cmd == Board.GET_VERSION:         
          self.version()
 

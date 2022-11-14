@@ -412,7 +412,22 @@ class FileView(QTreeView):
    
    def sysname(self, name):
       self.rootname = name
-      
+
+   def getFileList(self, path = "", node = None):
+      if node is None:
+         node = self.model()._root.child(0)
+
+      files = [ ]     
+      for ci in range(node.childCount()):
+         child = node.child(ci)
+
+         if child.isDir():
+             files.extend(self.getFileList(path + child.name + "/", child))
+         else:
+            files.append(path + child.name)
+   
+      return files
+         
    def findNode(self, name, path = "", node = None):
       if node is None:
          node = self.model()._root.child(0)

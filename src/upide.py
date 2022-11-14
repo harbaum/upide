@@ -108,7 +108,7 @@ class Window(QMainWindow):
          if not self.code["no_edit"]:
             if self.code["new_file"]:
                # open a editor view for the new file
-               self.editors.new(self.code["name"], self.code["code"])
+               self.editors.new(self.code["name"], True, self.code["code"])
             else:
                # update existing editor
                self.editors.saved(self.code["name"], self.code["code"])
@@ -189,9 +189,13 @@ class Window(QMainWindow):
       self.console.set_button(True)
       self.status()
       if success:
-         self.editors.new(result["name"], result["code"])
+         # loading the new editor automatically raises it         
          if "error" in result:
-            self.editors.highlight(result["name"], result["error"]["line"], result["error"]["msg"])
+            self.editors.new(result["name"], result["error"]["scroll_to"], result["code"])
+            self.editors.highlight(result["name"], result["error"]["line"],
+                                   result["error"]["scroll_to"], result["error"]["msg"])
+         else:
+            self.editors.new(result["name"], True, result["code"])
 
       # user has triggered a file load
    def on_open(self, name, size):
@@ -258,7 +262,8 @@ class Window(QMainWindow):
          self.backup_done(False, "No node")
          return
          
-      self.status(self.tr("Backing up: ")+f.split("/")[-1])
+      self.status(self.tr("Backing up {}").format(f.split("/")[-1]))
+      self.console.appendFinal(self.tr("Backing up {}").format(f) + "\n", None)
       self.board.cmd(Board.GET_FILE, self.on_backup_file, { "name": f, "size": node.size } )
       
       # user wants to make a full backup
@@ -291,6 +296,19 @@ class Window(QMainWindow):
          self.zip.close()
          self.zip = None
 
+      if len(self.restore_files_before) > 0:
+         # there are files on the device which were not from the backup. Ask user
+         # if the user wants them to be removed
+         qm = QMessageBox()
+         ret = qm.question(self,self.tr('Remove remaining files?'),
+                           self.tr("There are files remaining on the device which were not part of the backup.")+
+                           "\n"+self.tr("Do you want these files to be deleted?"), qm.Yes | qm.No)
+         if ret == qm.Yes:
+            for f in self.restore_files_before:
+               self.status(self.tr("Deleting: ")+f.split("/")[-1])
+               self.console.appendFinal(self.tr("Deleting: ")+f + "\n", None)
+               self.board.rm(f)
+            
       # once done reload the entire fileview. This will also
       # re-enable the ui
       self.board.cmd(Board.LISTDIR, self.on_listdir)
@@ -358,8 +376,14 @@ class Window(QMainWindow):
       return True      
       
    def restore_file(self, f):
-      self.status(self.tr("Restoring: ")+f.split("/")[-1])
+      self.status(self.tr("Restoring {}").format(f.split("/")[-1]))
+      self.console.appendFinal(self.tr("Restoring {}").format(f) + "\n", None)
 
+      # check if this file is in list of previous installed files (file was
+      # already there) and remove it from that list
+      if f in self.restore_files_before:
+         self.restore_files_before.remove(f)
+   
       if not self.mkpath(f):
          # failed to create directory. Abort restore
          self.restore_done(False)
@@ -413,8 +437,6 @@ class Window(QMainWindow):
          # a valid file. Thus we just silently stop here
          if os.path.exists(fname) and not os.path.isfile(fname): return
          
-         print("save to", fname);
-
          # start by loading the file into memory
          self.on_board_request(True)
          self.console.set_button(None)
@@ -428,6 +450,9 @@ class Window(QMainWindow):
          if not fname.lower().endswith(".zip"):
             fname = fname + ".zip"
 
+         # save list of currently installed files
+         self.restore_files_before = self.fileview.getFileList()
+         
          # disable gui during restore
          self.on_board_request(True)
          self.console.set_button(None)
@@ -629,7 +654,7 @@ class Window(QMainWindow):
    def on_loaded(self, success, result=None):
       # open editor window for this file
       if success:
-         self.editors.new(result["name"], result["code"])
+         self.editors.new(result["name"], True, result["code"])
          self.open_next_file(result["filelist"])
       else:
          self.on_all_loaded()         
@@ -757,6 +782,12 @@ class Window(QMainWindow):
          loc = lines[i-1].split(",")
          errline = int(loc[1].strip().split(" ")[1].strip())
 
+         # check if it's a user triggered "KeyboardInterrupt"
+         user_irq = False
+         for l in lines:
+            if "KeyboardInterrupt:" in l:
+               user_irq = True
+         
          # ctrl-c gives a KeyboardInterrupt: which may be confusing since
          # the user has probably pressed the stop button. So replace
          # the message
@@ -775,14 +806,14 @@ class Window(QMainWindow):
 
          # try to highlight. If that fails since e.g. the file is not loaded
          # in editor yet, then try to load it
-         if not self.editors.highlight(filename, errline, "\n".join(lines[i:])):
+         if not self.editors.highlight(filename, errline, not user_irq, "\n".join(lines[i:])):
             size = self.fileview.get_file_size(filename)
             if size is not None and size > 0:
                self.on_board_request(True)
                self.console.set_button(None)
                self.board.cmd(Board.GET_FILE, self.on_file, {
                   "name": filename, "size": size,
-                  "error": { "line": errline, "msg": "\n".join(lines[i:]) } } )
+                  "error": { "scroll_to":  not user_irq, "line": errline, "msg": "\n".join(lines[i:]) } } )
 
          # cut the "in <module>" if present. Since the line in question is highlighted,
          # the "in <module>" will not give any additional information

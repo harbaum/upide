@@ -85,7 +85,7 @@ class EditorTabs(QTabWidget):
             # if text has been edited set tab color red
             self.tabBar().setTabTextColor(index, Qt.red if state else Qt.black);
             
-    def new(self, name, code):
+    def new(self, name, focus, code):
         # check if we already have a tab for that file and just
         # raise it in that case
         index = self.get_index_by_file(name)
@@ -105,7 +105,7 @@ class EditorTabs(QTabWidget):
         # use filename without path as tabs name and make the new tab the
         # active one
         tab = self.addTab(editor, name.split("/")[-1])
-        self.setCurrentIndex(tab)
+        if focus: self.setCurrentIndex(tab)
         
     def exists(self, name):
         return self.get_index_by_file(name) != None
@@ -278,21 +278,22 @@ class Editors(QStackedWidget):
     def get_current(self):
         return self.tabs.getCurrent()
             
-    def highlight(self, name, line, message):
+    def highlight(self, name, line, scroll_to, message):
         tab = self.tabs.get_index_by_file(name)
         if tab is not None:
-            self.tabs.widget(tab).highlight(line-1, message)
-            self.tabs.setCurrentIndex(tab)
+            self.tabs.widget(tab).highlight(line-1, scroll_to, message)
+            if scroll_to: self.tabs.setCurrentIndex(tab)
+                
             return True
 
         return False
 
-    def new(self, name, code = None):
+    def new(self, name, focus = True, code = None):
         # if the tabs aren't in front, then bring them to front now
         self.show(True)
         
         # and request editor tab
-        self.tabs.new(name, code)
+        self.tabs.new(name, focus, code)
         
     def set_button(self, state):
         # set editor button(s) to
