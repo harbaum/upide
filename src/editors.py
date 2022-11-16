@@ -300,10 +300,10 @@ class Editors(QStackedWidget):
         # True=RUN, False=Stop or None
         self.tabs.set_button(state)
 
-    def saved(self, name, code):
+    def saved(self, name, code, user_triggered):
         tab = self.tabs.get_index_by_file(name)
         if tab is not None:
-            self.tabs.widget(tab).saved(code)
+            self.tabs.widget(tab).saved(code, user_triggered)
         else:
             # there is no open editor for the saved file. This usually
             # means at has been saved after being newly imported. So

@@ -111,7 +111,7 @@ class Window(QMainWindow):
                self.editors.new(self.code["name"], True, self.code["code"])
             else:
                # update existing editor
-               self.editors.saved(self.code["name"], self.code["code"])
+               self.editors.saved(self.code["name"], self.code["code"], self.code["user_triggered"])
 
          # something might have to happen after the file has been saved. E.g.
          # another example file is to be downloaded and saved. This is handled
@@ -124,8 +124,18 @@ class Window(QMainWindow):
       else:
          self.status(self.tr("Saving aborted with error"));
       
-   def on_save(self, name, code, new_file=False, cb=None, ctx = None, no_edit = False):
-      self.code = { "name": name, "code": code, "new_file": new_file, "callback": cb, "context": ctx, "no_edit": no_edit }
+   def on_save_button_clicked(self, name, code):
+      self.on_save(name, code, user_triggered = True)
+
+   def on_save(self, name, code, new_file=False, cb=None, ctx = None, no_edit = False, user_triggered = False):
+      # There may be further user edits to the file during the process of saving it. This
+      # is special as imported files need to update a related editor after the import as
+      # the import has probably changed file contents which need to be reflected in the
+      # editor. But if this was a user triggered save then things are different and we don't
+      # want the edits during the saving to be overwritten with the contents of the recently
+      # saved file.      
+      self.code = { "name": name, "code": code, "new_file": new_file, "callback": cb,
+                    "context": ctx, "no_edit": no_edit, "user_triggered": user_triggered }
       
       # User has requested to save the code he edited
       self.on_board_request(True)
@@ -602,7 +612,7 @@ class Window(QMainWindow):
       
       self.editors = Editors()
       self.editors.run.connect(self.on_run)
-      self.editors.save.connect(self.on_save)
+      self.editors.save.connect(self.on_save_button_clicked)
       self.editors.stop.connect(self.on_stop)
       self.editors.closed.connect(self.fileview.on_editor_closed)
       self.editors.changed.connect(self.fileview.select)

@@ -705,21 +705,25 @@ class CodeEditor(QPlainTextEdit):
     def rename(self, new):
         self.name = new
         
-    def saved(self, code):
-        # the saved code may actually not be the one currently displayed
-        # in the editor. This e.g. happens if a file is imported from the
-        # PC which was already open in the editor
-        if code != self.text():
-            if hasattr(code, "encode"):
-                self.setCode(code.encode("utf-8"))
-            else:
-                self.setCode(code)
-        else:
-            # the current code has been saved. So it becomes the
-            # unmodified one
-            self.code = self.text()
-            
-        self.updateModifyState(False)
+    def saved(self, code, user_triggered):
+        # A user triggered save is done from within an editor and we don't
+        # force an update of the editor contents as the user may still be
+        # modifiying it.
+        if not user_triggered:        
+            # the saved code may actually not be the one currently displayed
+            # in the editor. This e.g. happens if a file is imported from the
+            # PC which was already open in the editor
+            if code != self.text():
+                if hasattr(code, "encode"):
+                    self.setCode(code.encode("utf-8"))
+                else:
+                    self.setCode(code)
+
+        # the current code has been saved. So it becomes the
+        # unmodified one
+        self.code = code
+
+        self.updateModifyState(self.checkModified())
     
     def highlight(self, line, scroll_to = True, msg = None):
         self.error = None
