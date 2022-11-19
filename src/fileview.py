@@ -728,10 +728,20 @@ class FileView(QTreeView):
    EDITABLE_TYPES = [
       ( [ "py", "mpy" ], "Python" ), ( [ "html", "htm" ], "HTML"), ( ["css"], "CSS"),
       ( ["txt"], "Text"), ( ["json"], "JSON"), ( ["js"], "Javascript") ]
-         
+
+   IMAGE_TYPES = [
+      ( [ "bmp" ], "BMP Image" ), ( [ "gif" ], "GIF Image" ) ]
+   
+   def is_image(self, name):
+      for t in self.IMAGE_TYPES:
+         if name.split(".")[-1].lower() in t[0]:
+            return True
+
+      return False
+      
    def is_editable(self, name):
       # files ending with .py, .html, .css, .txt or .json can be opened/edited
-      for t in self.EDITABLE_TYPES:
+      for t in self.EDITABLE_TYPES + self.IMAGE_TYPES:
          if name.split(".")[-1].lower() in t[0]:
             return True
 

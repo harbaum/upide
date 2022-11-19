@@ -2,6 +2,7 @@
 # editor.py
 # 
 # Copyright (C) 2021-2022 Till Harbaum <till@harbaum.org>
+#  GIF encoder taken from https://github.com/qalle2/pygif
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -16,7 +17,7 @@
 # Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-import sys, os
+import sys, os, math, struct
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -411,6 +412,7 @@ class LineNumberArea(QWidget):
 class CodeEditor(QPlainTextEdit):
     run = pyqtSignal(str, str)
     save = pyqtSignal(str, str)
+    saveBytes = pyqtSignal(str, bytes)
     stop = pyqtSignal()
     modified = pyqtSignal(str, bool)
     
@@ -759,3 +761,342 @@ class CodeEditor(QPlainTextEdit):
             self.setTextCursor(cursor)
 
         self.setExtraSelections([selection])
+
+class ImageItem(QGraphicsPixmapItem):
+    # modified = pyqtSignal()
+        
+    def __init__(self):
+        super().__init__()
+        self.color = None
+        self.pix = None          # no image yet
+        self.drawing = False
+        self.cb = None
+
+    def setModificationCb(self, cb):
+        self.cb = cb
+        
+    def setColor(self, color):
+        self.color = color
+            
+    def setImage(self, data):
+        self.pix = QPixmap()        
+        self.pix.loadFromData(data)
+        self.setPixmap(self.pix)
+        self.painter = QPainter()
+
+    def setPixel(self, pos):
+        self.painter.begin(self.pix)
+        self.painter.setPen(self.color)            
+        self.painter.drawPoint(int(pos.x()), int(pos.y()))
+        self.painter.end()
+        self.setPixmap(self.pix)
+        if self.cb: self.cb()
+      
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.setPixel(event.pos())
+            self.drawing = True
+            
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.drawing = False
+            
+    def mouseMoveEvent(self, event):
+        if self.drawing:
+            self.setPixel(event.pos())
+                
+class ImageEditor(QGraphicsView):
+    run = pyqtSignal(str, str)   # never emitted
+    save = pyqtSignal(str, str)
+    saveBytes = pyqtSignal(str, bytes)
+    stop = pyqtSignal()          # never emitted
+    modified = pyqtSignal(str, bool)
+    
+    def __init__(self, name, parent=None):
+        super().__init__(parent)
+        self.name = name
+        self.scene = QGraphicsScene(self)
+        self.setScene(self.scene)
+        self.item = ImageItem()
+        self.scene.addItem(self.item)
+
+        self.viewport().installEventFilter(self)
+        self.setMouseTracking(True)
+
+        # pen (color picker) button
+        self.btn_pen = QPushButton(QIcon(self.resource_path("assets/editor_pen.svg")), "", self)
+        self.btn_pen.setIconSize(QSize(32,32));
+        self.btn_pen.setFlat(True)
+        self.btn_pen.resize(32, 32)
+        self.btn_pen.setStyleSheet("background-color: rgba(255, 255, 255, 0);");
+        self.btn_pen.pressed.connect(self.on_pen)
+
+        # overlay save button
+        self.btn_save = QPushButton(QIcon(self.resource_path("assets/editor_save.svg")), "", self)
+        self.btn_save.setIconSize(QSize(32,32));
+        self.btn_save.setFlat(True)
+        self.btn_save.resize(32, 32)
+        self.btn_save.setStyleSheet("background-color: rgba(255, 255, 255, 0);");
+        self.btn_save.pressed.connect(self.on_save)
+        self.btn_save.setToolTip(self.tr("Save this code") + " (CTRL-S)");
+        self.btn_save.setHidden(True)
+        
+        self.setColor(QColor(Qt.black))
+
+    def on_save(self):
+        ext = self.name.split(".")[-1]
+        if ext.lower() == "gif":
+            gifenc = GifEncoder()
+            data = gifenc.encode(self.item.pixmap().toImage())
+        else:        
+            buffer = QBuffer()
+            buffer.open(QIODevice.WriteOnly)
+            self.item.pixmap().save(buffer, ext)
+            data = bytes(buffer.data())
+
+        # only really emit this signal if the save button is enabled
+        if self.btn_save.isVisible():        
+            self.saveBytes.emit(self.name, data)
+
+    def isModified(self):
+        return self.is_modified
+        
+    def on_modified(self):
+        if not self.is_modified:
+            self.btn_save.setHidden(False)
+            self.modified.emit(self.name, True)
+            self.is_modified = True
+        
+    def setColor(self, color):
+        if color.isValid():
+            self.color = color
+            self.item.setColor(color)
+        
+    def on_pen(self):
+        self.setColor(QColorDialog.getColor(self.color))
+            
+    def resource_path(self, relative_path):
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+    
+    def setImage(self, data):
+        self.is_modified = False
+        self.item.setImage(data)
+        self.item.setModificationCb(self.on_modified)
+
+    def gentle_zoom(self, factor):
+        self.scale(factor, factor);
+
+    def wheelEvent(self, event):
+        self.gentle_zoom(1.001 ** event.angleDelta().y())
+        
+    def saved(self, data, user_triggered):
+        # if this was not user triggered it was a new image and the
+        # current image should be replaced
+        self.item.setImage(data)
+        
+        self.modified.emit(self.name, False)
+        self.btn_save.setHidden(True)
+        self.is_modified = False
+    
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+
+        # relocate the paint and save icons. Put the save icon on the right
+        # for non-python files for which no run icon is being showed
+        self.btn_pen.move(QPoint(self.width()-56, self.height()-56))
+        self.btn_save.move(QPoint(self.width()-100, self.height()-56))
+
+class GifEncoder:
+    class Image(QImage):
+        def __init__(self, image):
+            super().__init__(image)
+            self.offset = 0
+
+        def get_pixel(self, image, offset = None):
+            if offset == None: offset = self.offset        
+            pix = QColor(image.pixel(offset % image.width(), offset // image.width) & 0xffffff)
+            self.offset = offset + 1
+            return bytes(  )
+
+        def seek(self, offset, whence=0):
+            if whence == 2:
+                self.offset = 3 * self.width() * self.height() - offset
+            elif whence == 1:
+                self.offset += offset
+            else:
+                self.offset = offset
+
+            return self.offset
+
+        def read(self, num):
+            # always assume we are reading full pixels
+            c = QColor(self.pixel((self.offset//3) % self.width(),
+                                  (self.offset//3) // self.width()) & 0xffffff)
+
+            self.offset += 3
+            return bytes( [ c.red(), c.green(), c.blue() ] )
+        
+    # GIF encoder taken from https://github.com/qalle2/pygif
+    def __init__(self):
+        pass
+
+    def encode(self, qimage):
+        image = GifEncoder.Image(qimage)
+        
+        palette = self.get_palette(image)
+        if not palette: return
+
+        imageData = self.raw_image_to_indexed(image, palette)
+
+        data = b''
+        for chunk in self.generate_gif(palette, imageData, image):
+            data += chunk
+
+        return data
+            
+    def get_palette(self, handle):
+        # get palette from raw RGB image, return bytes (RGBRGB...)
+        
+        pixelCount = handle.seek(0, 2) // 3
+        handle.seek(0)
+        palette = {handle.read(3) for i in range(pixelCount)}
+        if len(palette) > 256:
+            print("Too many unique colors in input file.")
+            return None
+            
+        return b"".join(sorted(palette))
+        
+    def raw_image_to_indexed(self, handle, palette):
+        # convert RGB image into indexed (1 byte/pixel) using palette (RGBRGB...)
+
+        pixelCount = handle.seek(0, 2) // 3
+        handle.seek(0)
+        rgbToIndex = dict(
+            (palette[i*3:(i+1)*3], i) for i in range(len(palette) // 3)
+        )
+        return bytes(rgbToIndex[handle.read(3)] for i in range(pixelCount))
+    
+    def generate_lzw_codes(self, palBits, imageData):
+        # encode image data using LZW (Lempel-Ziv-Welch)
+        # palBits:   palette bit depth in encoding (2-8)
+        # imageData: indexed image data (1 byte/pixel)
+        # generate:  (code, code_length_in_bits)
+
+        # TODO: find out why this function encodes wolf3.gif and wolf4.gif
+        # different from GIMP.
+
+        # LZW dictionary (key = LZW entry, value = LZW code)
+        # note: doesn't contain clear and end codes, so actual length is len() + 2
+        # note: uses a lot of memory but looking up an entry is fast
+        lzwDict = dict((bytes((i,)), i) for i in range(2 ** palBits))
+
+        pos     = 0            # position in input data
+        codeLen = palBits + 1  # length of LZW codes (3-12)
+        entry   = bytearray()  # dictionary entry
+
+        yield (2 ** palBits, codeLen)  # clear code
+
+        while pos < len(imageData):
+            # find longest entry that's a prefix of remaining input data, and
+            # corresponding code; TODO: [pos:pos+1] instead of [pos:] breaks some
+            # decoders, investigate further
+            entry.clear()
+            for byte in imageData[pos:]:
+                entry.append(byte)
+                try:
+                    code = lzwDict[bytes(entry)]
+                except KeyError:
+                    entry = entry[:-1]
+                    break
+
+            yield (code, codeLen)  # code for entry
+
+            # advance in input data; if there's data left, update dictionary
+            pos += len(entry)
+            if pos < len(imageData):
+                if len(lzwDict) < 2 ** 12 - 2:
+                    # dictionary not full; add entry (current entry plus next
+                    # pixel); increase code length if necessary
+                    entry.append(imageData[pos])
+                    lzwDict[bytes(entry)] = len(lzwDict) + 2
+                    if len(lzwDict) > 2 ** codeLen - 2:
+                        codeLen += 1
+                # elif not args.no_dict_reset:
+                else:
+                    # dict. full; output clear code; reset code length & dict.
+                    yield (2 ** palBits, codeLen)
+                    codeLen = palBits + 1
+                    lzwDict = dict((bytes((i,)), i) for i in range(2 ** palBits))
+
+        yield (2 ** palBits + 1, codeLen)  # end code
+
+    def generate_lzw_bytes(self, paletteBits, imageData):
+        # get LZW codes, generate LZW data bytes
+
+        data    = 0  # LZW codes to convert into bytes (max. 7 + 12 = 19 bits)
+        dataLen = 0  # data length in bits
+
+        codeCount    = 0  # codes written
+        totalCodeLen = 0  # bits written
+
+        for (code, codeLen) in self.generate_lzw_codes(paletteBits, imageData):
+            # prepend code to data
+            data |= code << dataLen
+            dataLen += codeLen
+            # chop off full bytes from end of data
+            while dataLen >= 8:
+                yield data & 0xff
+                data >>= 8
+                dataLen -= 8
+            # update stats
+            codeCount += 1
+            totalCodeLen += codeLen
+
+        if dataLen:
+            yield data  # the last byte
+
+    def generate_gif(self, palette, imageData, image):
+        # generate a GIF file (version 87a, one image) as bytestrings
+        # palette: 3 bytes/color, imageData: 1 byte/pixel
+
+        # palette size in bits in Global Color Table (1-8) / in LZW encoding (2-8)
+        palBitsGct = max(math.ceil(math.log2(len(palette) // 3)), 1)
+        palBitsLzw = max(palBitsGct, 2)
+
+        yield b"GIF87a"  # Header (signature, version)
+
+        # Logical Screen Descriptor
+        yield struct.pack(
+            "<2H3B",
+            image.width(), image.height(),  # logical screen width/height
+            0b10000000 | palBitsGct - 1,    # packed fields (GCT present)
+            0, 0                            # background color index, aspect ratio
+        )
+
+        # todo: fix palette writing
+        yield palette + (2 ** palBitsGct * 3 - len(palette)) * b"\x00"  # pad GCT
+
+        # Image Descriptor
+        yield struct.pack(
+            "<s4HB",
+            b",", 0, 0,                     # image separator, image left/top position
+            image.width(), image.height(),  # image width/height
+            0b00000000                      # packed fields
+        )
+
+        yield bytes((palBitsLzw,))
+
+        # LZW data in subblocks (length byte + 255 LZW bytes or less)
+        subblock = bytearray()
+        for lzwByte in self.generate_lzw_bytes(palBitsLzw, imageData):
+            subblock.append(lzwByte)
+            if len(subblock) == 0xff:
+                # flush subblock
+                yield bytes((len(subblock),)) + subblock
+                subblock.clear()
+        if subblock:
+            yield bytes((len(subblock),)) + subblock  # the last subblock
+
+        yield b"\x00;"  # empty subblock, trailer

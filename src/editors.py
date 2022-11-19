@@ -21,7 +21,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
-from editor import CodeEditor
+from editor import CodeEditor, ImageEditor
 
 class EditorTabs(QTabWidget):
     closed = pyqtSignal(str)
@@ -93,12 +93,18 @@ class EditorTabs(QTabWidget):
             self.setCurrentIndex(index)
             return
 
-        # create a new edior view
-        editor = CodeEditor(name)
-        editor.setCode(code)
+        # check if it's an image file
+        if name.split(".")[-1] in [ "bmp", "gif" ]:
+            editor = ImageEditor(name)
+            editor.setImage(code)
+        else:        
+            # create a new edior view
+            editor = CodeEditor(name)
+            editor.setCode(code)
 
         editor.run.connect(self.stack.on_run)
         editor.save.connect(self.stack.on_save)
+        editor.saveBytes.connect(self.stack.on_save_bytes)
         editor.modified.connect(self.on_modified)
         editor.stop.connect(self.stack.on_stop)
 
@@ -149,6 +155,7 @@ class EditorTabs(QTabWidget):
 class Editors(QStackedWidget):
     run = pyqtSignal(str, str)
     save = pyqtSignal(str, str)
+    save_bytes = pyqtSignal(str, bytes)
     stop = pyqtSignal()
     closed = pyqtSignal(str)
     changed = pyqtSignal(str)
@@ -258,6 +265,9 @@ class Editors(QStackedWidget):
         
     def on_save(self, name, code):
         self.save.emit(name, code)
+        
+    def on_save_bytes(self, name, data):
+        self.save_bytes.emit(name, data)
         
     def on_run(self, name, code):
         # clear any existing error highlight in that editor

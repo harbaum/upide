@@ -613,6 +613,7 @@ class Window(QMainWindow):
       self.editors = Editors()
       self.editors.run.connect(self.on_run)
       self.editors.save.connect(self.on_save_button_clicked)
+      self.editors.save_bytes.connect(self.on_save_button_clicked)
       self.editors.stop.connect(self.on_stop)
       self.editors.closed.connect(self.fileview.on_editor_closed)
       self.editors.changed.connect(self.fileview.select)
