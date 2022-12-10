@@ -297,6 +297,18 @@ class Window(QMainWindow):
          # start backup with first file
          f = self.fileview.get_next_file()
          self.backup_file(f)
+
+   def eventFilter(self, obj, event):
+      if event.type() == QEvent.MouseButtonRelease:
+         index = self.cbox.view().currentIndex().row()
+         if self.cbox.itemData(index, Qt.CheckStateRole) == Qt.Checked:
+            self.cbox.setItemData(index, Qt.Unchecked, Qt.CheckStateRole)                                  
+         else:
+            self.cbox.setItemData(index, Qt.Checked, Qt.CheckStateRole)
+            
+         return True
+      
+      return super().eventFilter(obj, event)
          
    def restore_done(self, ok):
       if ok: self.status(self.tr("Restoration successful"))
@@ -309,16 +321,43 @@ class Window(QMainWindow):
       if len(self.restore_files_before) > 0:
          # there are files on the device which were not from the backup. Ask user
          # if the user wants them to be removed
-         qm = QMessageBox()
-         ret = qm.question(self,self.tr('Remove remaining files?'),
-                           self.tr("There are files remaining on the device which were not part of the backup.")+
-                           "\n"+self.tr("Do you want these files to be deleted?"), qm.Yes | qm.No)
-         if ret == qm.Yes:
-            for f in self.restore_files_before:
-               self.status(self.tr("Deleting: ")+f.split("/")[-1])
-               self.console.appendFinal(self.tr("Deleting: ")+f + "\n", None)
-               self.board.rm(f)
-            
+         qm = QMessageBox(QMessageBox.Question, self.tr('Remove remaining files?'),
+                          self.tr("There are files remaining on the device which were not part of the backup.")+
+                          "\n"+self.tr("Do you want these files to be deleted?"),
+                          parent=self)
+         qm.setStandardButtons(qm.Yes | qm.No)
+
+         # add a checkbox, so we have a known widget we can replace with something else ..
+         qm.setCheckBox(QCheckBox("xyz", qm))
+         x = qm.layout().getItemPosition(qm.layout().indexOf(qm.checkBox()))
+
+         # create a combobox made of checkboxes
+         self.cbox = QComboBox(qm)
+         mod = QStandardItemModel(1,0)
+         for i in range(len(self.restore_files_before)):         
+            item = QStandardItem(self.restore_files_before[i])
+            item.setCheckable(True)
+            item.setCheckState(Qt.Checked)
+            mod.setItem(i,item)         
+
+         # set use checkboxes for combobox and replace checkbox widget with combobox
+         self.cbox.setModel(mod)
+         self.cbox.setPlaceholderText(self.tr("Files to delete"))
+         self.cbox.setCurrentIndex(-1);
+         self.cbox.view().viewport().installEventFilter(self)         
+         qm.layout().addWidget(self.cbox, x[0], x[1], x[2], x[3])
+         
+         if qm.exec_() == qm.Yes:
+            # get all filenames from combobox
+            for i in range(mod.rowCount()):
+               f = self.cbox.itemText(i)
+               if self.cbox.itemData(i, Qt.CheckStateRole) == Qt.Checked:
+                  self.status(self.tr("Deleting: {}").format(f.split("/")[-1]))  # xyz
+                  self.console.appendFinal(self.tr("Deleting: {}").format(f) + "\n", None)
+                  self.board.rm(f)                  
+               else:
+                  self.console.appendFinal(self.tr("Keeping: {}").format(f) + "\n", None)
+               
       # once done reload the entire fileview. This will also
       # re-enable the ui
       self.board.cmd(Board.LISTDIR, self.on_listdir)
