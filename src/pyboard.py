@@ -327,7 +327,7 @@ class Pyboard:
         return data
 
     def enter_raw_repl(self, soft_reset=True):
-        print("enter raw repl", soft_reset)
+        # print("enter raw repl", soft_reset)
 
         tries = 2
         n = 1
