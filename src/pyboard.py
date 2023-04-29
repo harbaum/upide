@@ -327,13 +327,24 @@ class Pyboard:
         return data
 
     def enter_raw_repl(self, soft_reset=True):
-        self.serial.write(b"\r\x03\x03")  # ctrl-C twice: interrupt any running program
+        print("enter raw repl", soft_reset)
 
-        # flush input (without relying on serial.flushInput())
-        n = self.serial.inWaiting()
-        while n > 0:
-            self.serial.read(n)
+        tries = 2
+        n = 1
+        while tries > 0 and n > 0:
+        
+            self.serial.write(b"\r\x03\x03")  # ctrl-C twice: interrupt any running program
+
+            # flush input (without relying on serial.flushInput())
             n = self.serial.inWaiting()
+            to = 10  # 1 second
+        
+            while n > 0 and to >= 0:
+                time.sleep(0.1)
+                n = self.serial.inWaiting()
+                self.serial.read(n)
+                n = self.serial.inWaiting()
+                to -= 1
 
         self.serial.write(b"\r\x01")  # ctrl-A: enter raw REPL
 
@@ -352,7 +363,7 @@ class Pyboard:
                 print(data)
                 raise PyboardError("could not enter raw repl")
 
-        data = self.read_until(1, b"raw REPL; CTRL-B to exit\r\n")
+        data = self.read_until(1, b"raw REPL; CTRL-B to exit\r\n", timeout = 1)
         if not data.endswith(b"raw REPL; CTRL-B to exit\r\n"):
             print(data)
             raise PyboardError("could not enter raw repl")
