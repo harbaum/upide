@@ -21,6 +21,7 @@ import sys, io, os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
+from PyQt5.QtNetwork import *
 
 import json
 from argparse import Namespace
@@ -56,8 +57,11 @@ class EspThread(QThread):
          for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
 
-      return hash_md5.hexdigest().lower() == sum.lower()
-
+      sumhex = hash_md5.hexdigest().lower()
+      if sumhex != sum.lower():
+         print("MD5SUM:", sumhex)
+      return sumhex == sum.lower()
+           
    def run(self):
       esp = None
       args = None
@@ -75,7 +79,11 @@ class EspThread(QThread):
          f = self.config["parms"]["addr_filename"]
 
          # verify md5 sum
-         fname = self.resource_path("assets/firmware/"+f[1])      
+         if "tempFile" in self.config:
+            fname = self.config["tempFile"]
+         else:
+            fname = self.resource_path("assets/firmware/"+f[1])
+            
          if len(f) > 2 and not self.md5sum(fname, f[2]):
             raise ValueError("MD5 sum verification of firmware file {} failed!".format(f[1]))
             
@@ -115,8 +123,11 @@ class EspThread(QThread):
       if esp:
          esp._port.close()
 
-      if hasattr(args, "addr_filename"):
-         args.addr_filename[0][1].close()
+      try:
+         if hasattr(args, "addr_filename"):
+            args.addr_filename[0][1].close()
+      except:
+         pass
                                 
       self.done.emit(ok)
       
@@ -400,6 +411,31 @@ class EspInstaller(QVBoxLayout):
       self.board_cbox.setEnabled(enable)
       self.erase_flash.setEnabled(enable)
          
+   def on_network_progress(self, br, bt):
+      if bt: self.text_out("Downloading: " + str(100*br//bt) + "%\n")
+      
+   def on_network_finished(self, reply):
+      if reply.error() == QNetworkReply.NoError:
+         config = reply.property("config")
+
+         # write reply into temporary file
+         self.fileTemp = QTemporaryFile()
+         self.fileTemp.open()
+         config["tempFile"] = self.fileTemp.fileName()         
+         self.fileTemp.writeData(reply.readAll())
+         self.fileTemp.close()
+         
+         self.flash(config)
+      else:
+         self.text_out(self.tr("Download error") + ": " + str(reply.error())+"\n")
+         self.text_out(reply.errorString()+"\n")
+
+         self.alert( { "title": self.tr("Download error"), "message": reply.errorString() } )
+         
+         self.status_label.setStyleSheet("color: red;");
+         self.status_label.setText(self.tr("Download failed"));
+         self.enable_gui(True)
+         
    # run esptool in the background with output redirection
    def install_firmware(self):
       self.text.clear();
@@ -416,7 +452,24 @@ class EspInstaller(QVBoxLayout):
       # overwrite erase_all setting on user request
       if self.erase_flash.isChecked():
          config["parms"]["erase_all"] = True
-      
+
+      # check if the filename is actually a url and we need to
+      # download the file first
+      if config["parms"]["addr_filename"][1].lower().startswith("http"):
+         self.text_out(self.tr("Downloading ") + str(config["parms"]["addr_filename"][1].split("/")[-1])+"\n")
+
+         # download into a temporary file
+         self.req = QNetworkRequest(QUrl(config["parms"]["addr_filename"][1]))
+         self.manager = QNetworkAccessManager()
+         self.manager.finished.connect(self.on_network_finished)
+
+         self.reply = self.manager.get(self.req)
+         self.reply.setProperty("config", config)
+         self.reply.downloadProgress.connect(self.on_network_progress)
+      else:
+         self.flash(config)
+
+   def flash(self, config):         
       # get port from gui
       config["port"] = self.get_port()
       self.thread = EspThread(config)
