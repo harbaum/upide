@@ -1,6 +1,5 @@
 #!/bin/bash
-# requires create-dmg (brew install create-dmg)
-python3 -m PyInstaller --target-arch=universal2 --noconfirm --windowed --name="upide" --icon=upide.icns --add-data='assets:assets' upide.py
+python3 -m PyInstaller --noconfirm --windowed --name="upide" --icon=upide.icns --add-data='assets:assets' upide.py
 mkdir -p dist/dmg
 rm -r dist/dmg/*
 cp -r dist/upide.app dist/dmg
