@@ -166,26 +166,20 @@ class EspInstaller(QVBoxLayout):
       self.cb = cb
       self.savedSize = { True: None, False: QSize(480,480) }
       self.retval = False
+      self.config = { }
+      self.sysname = sysname
 
       parent.setWindowTitle(self.tr("ESP MicroPython Installer"))
-      
-      try:
-         # read esp configurations      
-         with open(self.resource_path("assets/esp_firmware.json"), "r") as f:
-            self.config = { "firmware": json.loads(f.read()) }
-         ports = serial.tools.list_ports.comports()
-      except Exception as e:
-         msg1 = QLabel(self.tr("Error loading ESP firmware data"))
-         msg1.setAlignment(Qt.AlignCenter);
-         self.addWidget(msg1)
-         msg2 = QLabel(str(e))
-         msg2.setStyleSheet("color: red;");
-         msg2.setAlignment(Qt.AlignCenter);
-         self.addWidget(msg2)
-         self.fail = True      # init has failed
-         return
 
+      # download firmware.json from github
+      self.manager = QNetworkAccessManager()
+      self.manager.finished.connect(self.on_network_finished)
+      
+      self.req = QNetworkRequest(QUrl("https://raw.githubusercontent.com/harbaum/upide/main/firmware.json"))
+      self.reply = self.manager.get(self.req)
+   
       # create a dropdown list of serial ports ...
+      ports = serial.tools.list_ports.comports()
       port_w = QWidget()
       portbox = QHBoxLayout()
       portbox.setContentsMargins(0,0,0,0)
@@ -211,35 +205,12 @@ class EspInstaller(QVBoxLayout):
       board_w.setLayout(boardbox)
       boardbox.addWidget(QLabel(self.tr("Type:")))
 
-      # find all sysnames in this
-      sysnames = [ ]
-      for f in self.config["firmware"]:
-         if f["sysname"] not in sysnames:
-            sysnames.append(f["sysname"])
-
-      # todo: move this out of here
-      if sysname is not None and sysname.upper() not in sysnames:
-         if QMessageBox().information(self.rootElement(),
-             self.tr('Unsupported system'),
-             self.tr("Your board \"{}\" doesn't seem to be supported by "
-             "the ESP flasher. Do you really want to proceed?").format(sysname),
-            QMessageBox().Yes | QMessageBox().No) == QMessageBox().No:
-            self.fail = True      # init has failed
-            return
-            
       self.type_cbox = QComboBox()
-      for s in sysnames: self.type_cbox.addItem(s)
-      if sysname is not None and sysname.upper() in sysnames:
-         self.type_cbox.setCurrentText(sysname.upper())
       self.type_cbox.currentTextChanged.connect(self.on_sys_changed)
       boardbox.addWidget(self.type_cbox)
       
       self.board_cbox = QComboBox()
       self.board_cbox.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon);
-      # only list those matching the selected sysname
-      for f in self.config["firmware"]:
-         if f["sysname"].upper() == self.type_cbox.currentText().upper():
-            self.board_cbox.addItem(f["board"], f)
       boardbox.addWidget(self.board_cbox, 1)
       self.erase_flash = QCheckBox(self.tr("Erase all data"))
       boardbox.addWidget(self.erase_flash, 0)
@@ -285,6 +256,9 @@ class EspInstaller(QVBoxLayout):
       self.button_box.rejected.connect(self.reject)
       self.addWidget(self.button_box)            
 
+      # disable gui until firmware.json has been loaded
+      self.enable_gui(False)
+      
    def on_sys_changed(self, sysname):
       self.board_cbox.clear()
       for f in self.config["firmware"]:
@@ -415,27 +389,82 @@ class EspInstaller(QVBoxLayout):
       if bt: self.text_out("Downloading: " + str(100*br//bt) + "%\n")
       
    def on_network_finished(self, reply):
-      if reply.error() == QNetworkReply.NoError:
-         config = reply.property("config")
+      config = reply.property("config")
 
-         # write reply into temporary file
-         self.fileTemp = QTemporaryFile()
-         self.fileTemp.open()
-         config["tempFile"] = self.fileTemp.fileName()         
-         self.fileTemp.writeData(reply.readAll())
-         self.fileTemp.close()
+      # a config property is only present if a firmware has been downloaded
+      # otherwise this was the download of the firmware.json
+      if config:
+         if reply.error() == QNetworkReply.NoError:
+            # write reply into temporary file
+            self.fileTemp = QTemporaryFile()
+            self.fileTemp.open()
+            config["tempFile"] = self.fileTemp.fileName()         
+            self.fileTemp.writeData(reply.readAll())
+            self.fileTemp.close()
          
-         self.flash(config)
+            self.flash(config)
+         else:
+            self.text_out(self.tr("Download error") + ": " + str(reply.error())+"\n")
+            self.text_out(reply.errorString()+"\n")
+
+            self.alert( { "title": self.tr("Download error"), "message": reply.errorString() } )
+         
+            self.status_label.setStyleSheet("color: red;");
+            self.status_label.setText(self.tr("Download failed"));
+            self.enable_gui(True)
+
       else:
-         self.text_out(self.tr("Download error") + ": " + str(reply.error())+"\n")
-         self.text_out(reply.errorString()+"\n")
+         if reply.error() == QNetworkReply.NoError:
+            
+            # load firmware config
+            try:
+               self.config["firmware"] = json.loads(str(reply.readAll(), 'utf-8'))
+            except:
+               self.status_label.setStyleSheet("color: red;");
+               self.status_label.setText(self.tr("Download failed"));
 
-         self.alert( { "title": self.tr("Download error"), "message": reply.errorString() } )
+               # enable only the cancel button
+               self.button_box.setEnabled(True)
+               self.button_box.button( QDialogButtonBox.Ok ).setEnabled(False)
+
+               return
+            
+            # finish gui setup
+            
+            # find all sysnames in this
+            sysnames = [ ]
+            for f in self.config["firmware"]:
+               if f["sysname"] not in sysnames:
+                  sysnames.append(f["sysname"])
+               
+            # todo: move this out of here
+            if self.sysname is not None and self.sysname.upper() not in sysnames:
+               if QMessageBox().information(self.rootElement(),
+                                            self.tr('Unsupported system'),
+                                            self.tr("Your board \"{}\" doesn't seem to be supported by "
+                                                    "the ESP flasher. Do you really want to proceed?").format(sysname),
+                  QMessageBox().Yes | QMessageBox().No) == QMessageBox().No:
+                  self.fail = True      # init has failed
+                  return
+               
+            for s in sysnames: self.type_cbox.addItem(s)
+            if self.sysname is not None and self.sysname.upper() in sysnames:
+               self.type_cbox.setCurrentText(self.sysname.upper())
+
+            self.enable_gui(True)
+         else:
+            self.text_out(self.tr("Download error") + ": " + str(reply.error())+"\n")
+            self.text_out(reply.errorString()+"\n")
+
+            self.alert( { "title": self.tr("Download error"), "message": reply.errorString() } )
          
-         self.status_label.setStyleSheet("color: red;");
-         self.status_label.setText(self.tr("Download failed"));
-         self.enable_gui(True)
-         
+            self.status_label.setStyleSheet("color: red;");
+            self.status_label.setText(self.tr("Download failed"));
+
+            # enable only the cancel button
+            self.button_box.setEnabled(True)
+            self.button_box.button( QDialogButtonBox.Ok ).setEnabled(False)
+            
    # run esptool in the background with output redirection
    def install_firmware(self):
       self.text.clear();
@@ -460,9 +489,6 @@ class EspInstaller(QVBoxLayout):
 
          # download into a temporary file
          self.req = QNetworkRequest(QUrl(config["parms"]["addr_filename"][1]))
-         self.manager = QNetworkAccessManager()
-         self.manager.finished.connect(self.on_network_finished)
-
          self.reply = self.manager.get(self.req)
          self.reply.setProperty("config", config)
          self.reply.downloadProgress.connect(self.on_network_progress)

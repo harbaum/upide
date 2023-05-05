@@ -109,74 +109,69 @@
 <context>
     <name>EspInstaller</name>
     <message>
-        <location filename="../../esp_installer.py" line="211"/>
+        <location filename="../../esp_installer.py" line="442"/>
         <source>Unsupported system</source>
         <translation>Nicht unterstützes System</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="233"/>
+        <location filename="../../esp_installer.py" line="215"/>
         <source>Erase all data</source>
         <translation>Alle Daten löschen</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="454"/>
+        <location filename="../../esp_installer.py" line="533"/>
         <source>Show details...</source>
         <translation>Details anzeigen...</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="373"/>
+        <location filename="../../esp_installer.py" line="358"/>
         <source>Installation done</source>
         <translation>Installation beendet</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="373"/>
+        <location filename="../../esp_installer.py" line="358"/>
         <source>The MicroPython installation finished successfully</source>
         <translation>Die Micropython-Installation wurde erfolgreich beendet</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="386"/>
+        <location filename="../../esp_installer.py" line="371"/>
         <source>Firmware installation failed</source>
         <translation>Firmware-Installation fehlgeschlagen</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="390"/>
+        <location filename="../../esp_installer.py" line="375"/>
         <source>Waiting for firmware to boot ...
 </source>
         <translation>Warte auf Firmware-Start ...
 </translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="410"/>
+        <location filename="../../esp_installer.py" line="475"/>
         <source>Flashing firmware</source>
         <translation>Flashe Firmware</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="451"/>
+        <location filename="../../esp_installer.py" line="530"/>
         <source>Hide details...</source>
         <translation>Details verbergen...</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="167"/>
-        <source>Error loading ESP firmware data</source>
-        <translation>Fehler beim Laden der ESP32-Firmware-Daten</translation>
-    </message>
-    <message>
-        <location filename="../../esp_installer.py" line="182"/>
+        <location filename="../../esp_installer.py" line="187"/>
         <source>Port:</source>
         <translation>Anschluss:</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="201"/>
+        <location filename="../../esp_installer.py" line="206"/>
         <source>Type:</source>
         <translation>Typ:</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="159"/>
+        <location filename="../../esp_installer.py" line="172"/>
         <source>ESP MicroPython Installer</source>
         <translation>ESP-Micropython-Installation</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="255"/>
+        <location filename="../../esp_installer.py" line="237"/>
         <source>ESP MicroPython installation tool
 Please select the appropriate COM port
 and the ESP board type you are using.
@@ -187,14 +182,29 @@ den ESP-Bord-Typ auswählen.
 Schließlich den &apos;Ok&apos;-Knopf betätigen.</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="383"/>
+        <location filename="../../esp_installer.py" line="368"/>
         <source>Firmware installed successfully</source>
         <translation>Firmware erfolgreich installiert</translation>
     </message>
     <message>
-        <location filename="../../esp_installer.py" line="211"/>
+        <location filename="../../esp_installer.py" line="442"/>
         <source>Your board &quot;{}&quot; doesn&apos;t seem to be supported by the ESP flasher. Do you really want to proceed?</source>
         <translation>Das Board &amp;quot;{}&amp;quot; scheint nicht vom ESP-Flasher unterstützt zu werden. Wirklich fortfahren?</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="459"/>
+        <source>Download error</source>
+        <translation>Fehler beim Herunterladen</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="462"/>
+        <source>Download failed</source>
+        <translation>Herunterladen fehlgeschlagen</translation>
+    </message>
+    <message>
+        <location filename="../../esp_installer.py" line="488"/>
+        <source>Downloading </source>
+        <translation>Lade herunter </translation>
     </message>
 </context>
 <context>
