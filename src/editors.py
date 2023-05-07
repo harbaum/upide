@@ -137,11 +137,16 @@ class EditorTabs(QTabWidget):
             if hasattr(self.widget(i), "set_button"):
                 self.widget(i).set_button(state)
 
+    def setModified(self, name):
+        index = self.get_index_by_file(name)
+        if index != None:
+            self.widget(index).on_modified()
+                    
     def isModified(self):
         # return true if any of the editor tabs
         # contains modified (unsaved) data
         for i in range(self.count()):
-            if hasattr(self.widget(i), "isModified"):            
+            if hasattr(self.widget(i), "isModified"):
                 if self.widget(i).isModified():
                     return True
 
@@ -151,7 +156,18 @@ class EditorTabs(QTabWidget):
         w = self.currentWidget()
         if w is not None:
             w.setFocus()        
-    
+
+    def getUnsaved(self):
+        unsaved = { }
+        # The connection to the device has been lost. Get all
+        # unsaved data to keep it for later reconnection
+        for i in range(self.count()):
+            if hasattr(self.widget(i), "name") and hasattr(self.widget(i), "isModified"):   
+                if self.widget(i).isModified():
+                    unsaved[self.widget(i).name] = self.widget(i).getData()
+
+        return unsaved
+
 class Editors(QStackedWidget):
     run = pyqtSignal(str, str)
     save = pyqtSignal(str, str)
@@ -209,7 +225,7 @@ class Editors(QStackedWidget):
 
         vbox.addStretch(1)
 
-        copyright = QLabel(self.tr("© 2021-2022 Till Harbaum &lt;till@harbaum.org&gt;"), vbox_w)
+        copyright = QLabel(self.tr("© 2021-2023 Till Harbaum &lt;till@harbaum.org&gt;"), vbox_w)
         copyright.setAlignment(Qt.AlignCenter)
         vbox.addWidget(copyright)
 
@@ -323,6 +339,9 @@ class Editors(QStackedWidget):
     def isModified(self):
         return self.tabs.isModified()
 
+    def setModified(self, name):
+        return self.tabs.setModified(name)
+
     def closeAll(self):
         self.tabs.closeAll()
 
@@ -339,8 +358,9 @@ class Editors(QStackedWidget):
         # the running program in that case        
         tab = self.tabs.get_index_by_file(name)
         if tab is not None and tab >= 0:
-            if self.tabs.widget(tab).button_mode == False:
-                self.stop.emit()
+            if hasattr(self.tabs.widget(tab), "button_mode"):
+                if self.tabs.widget(tab).button_mode == False:
+                    self.stop.emit()
             
         self.closed.emit(name)
 
@@ -365,3 +385,8 @@ class Editors(QStackedWidget):
         # the matching editor if it exists
         tab = self.tabs.get_index_by_file(name)
         if tab is not None: self.tabs.setCurrentIndex(tab)
+
+    def getUnsaved(self):
+        # The connection to the device has been lost. Get all
+        # unsaved data to keep it for later reconnection
+        return self.tabs.getUnsaved()

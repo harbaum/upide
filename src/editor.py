@@ -506,6 +506,15 @@ class CodeEditor(QPlainTextEdit):
     def checkModified(self):
         return self.text() != self.code
         
+    def on_modified(self):
+        # the on_modified can be triggered externally if
+        # unsaved editor contents have been reloaded after a
+        # crash or the like. In this case we set "code" to
+        # an empty string representing the fact that we don't
+        # have an unmodfied state to compare to
+        self.code = ""
+        self.updateModifyState(True)
+        
     def on_edit(self):
         # check for text change
         if self.timer is None:
@@ -532,8 +541,9 @@ class CodeEditor(QPlainTextEdit):
             
     def setCode(self, code):
         if code is not None:
-            # convert to text
-            code = code.decode("utf-8")
+            # convert to text if necessary
+            if hasattr(code, "decode"):
+                code = code.decode("utf-8")
             # the editor works internally with \n only
             code = code.replace('\r', '')        
             self.code = code   # save code
@@ -610,6 +620,9 @@ class CodeEditor(QPlainTextEdit):
         self.searchedit.setFocus()
         self.search_dialog.show()
 
+    def getData(self):
+        return self.text()
+        
     def on_save(self):
         # only really emit this signal if the save button is enabled
         if self.btn_save.isVisible():        
@@ -771,7 +784,8 @@ class ImageItem(QGraphicsPixmapItem):
         self.pix = None          # no image yet
         self.drawing = False
         self.cb = None
-
+        self.button_mode = None
+        
     def setModificationCb(self, cb):
         self.cb = cb
         
@@ -843,7 +857,7 @@ class ImageEditor(QGraphicsView):
         
         self.setColor(QColor(Qt.black))
 
-    def on_save(self):
+    def getData(self):
         ext = self.name.split(".")[-1]
         if ext.lower() == "gif":
             gifenc = GifEncoder()
@@ -854,6 +868,11 @@ class ImageEditor(QGraphicsView):
             self.item.pixmap().save(buffer, ext)
             data = bytes(buffer.data())
 
+        return data
+            
+    def on_save(self):
+        data = self.getData()
+        
         # only really emit this signal if the save button is enabled
         if self.btn_save.isVisible():        
             self.saveBytes.emit(self.name, data)

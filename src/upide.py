@@ -55,6 +55,9 @@ class Window(QMainWindow):
             event.ignore();
             return
 
+      # keep any unsaved data ...
+      self.settings.setValue('unsaved', self.editors.getUnsaved())
+      
       # save window related settings
       self.settings.setValue('window_geometry', self.saveGeometry())
       self.settings.setValue('window_state', self.saveState())
@@ -352,7 +355,7 @@ class Window(QMainWindow):
             for i in range(mod.rowCount()):
                f = self.cbox.itemText(i)
                if self.cbox.itemData(i, Qt.CheckStateRole) == Qt.Checked:
-                  self.status(self.tr("Deleting: {}").format(f.split("/")[-1]))  # xyz
+                  self.status(self.tr("Deleting: {}").format(f.split("/")[-1])) 
                   self.console.appendFinal(self.tr("Deleting: {}").format(f) + "\n", None)
                   self.board.rm(f)                  
                else:
@@ -701,6 +704,19 @@ class Window(QMainWindow):
       self.on_board_request(False)
       self.console.set_button(True)
 
+      # there may have been unsaved editor windows
+      unsaved = self.settings.value('unsaved')
+      if unsaved:
+         # now open windows for all unsaved data and mark it as modified         
+         for f in unsaved:
+            # The same file may already be loaded from
+            # the device. Close that one first
+            if self.editors.exists(f):
+               self.editors.close(f)
+            
+            self.editors.new(f, True, unsaved[f])           
+            self.editors.setModified(f)
+
    def on_loaded(self, success, result=None):
       # open editor window for this file
       if success:
@@ -961,6 +977,9 @@ class Window(QMainWindow):
          self.close()
       
    def port_lost(self):
+      # make sure no unsaved data is lost when closing the editors
+      self.settings.setValue('unsaved', self.editors.getUnsaved())
+      
       # disable all board interaction
       self.editors.closeAll()
       self.fileview.set(None)
