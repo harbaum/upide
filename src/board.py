@@ -226,7 +226,6 @@ class Board(QObject):
       if line != None:
          line = line.replace('\r', '')
          if line == "": return
-        
          self.result = ast.literal_eval(line)
        
    def reply_parser(self, data = None, line_parser = None):
@@ -297,8 +296,8 @@ class Board(QObject):
          #  make sure we have a comma before anything but the first entry
          "  if first: first=False\n"
          "  else:     print(',',end='')\n"
-         "  print('(\"{}\",'.format(f[0]), end='')\n"
-         "  if f[1]&0x4000: _list(d+'/'+f[0])\n"
+         "  print('(\"{}\",'.format(f[0].replace('\"','\\\\\\\"')), end='')\n"
+         "  if f[1]&0x4000: _list(d+'/'+f[0].replace('\"','\\\\\\\"'))\n"
          "  else: print('{}'.format(f[3] if len(f)>3 else 0), end='')\n"
          "  print(')', end='')\n"
          " print(']',end='')\n"
