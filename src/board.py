@@ -45,6 +45,7 @@ class Board(QObject):
    RUN = 6
    REPL = 7
    CONNECT = 8    # on user request with noscan
+   HASH = 9
 
    def __init__(self, parent=None):
       super().__init__(parent)
@@ -142,7 +143,7 @@ class Board(QObject):
    def do_in_thread(self, func, args=None):
       """ run worker thread in the background to do the board
       communication """
-      
+
       # Check if thread is already active. This should
       # never happen
       if self.worker_thread:
@@ -277,10 +278,10 @@ class Board(QObject):
    def version(self):
       self.do_in_thread(self.func_version)
 
-   def func(self, cmd):
+   def func(self, cmd, parser=None):
       self.reply_parser()           # reset parser
       self.board.enter_raw_repl(self.soft_reset)
-      self.board.exec_(cmd, data_consumer=self.reply_parser_ast)
+      self.board.exec_(cmd, data_consumer=parser if parser else self.reply_parser_ast)
       self.board.exit_raw_repl()
       self.send_result(True, self.result)
       
@@ -401,6 +402,46 @@ class Board(QObject):
       
    def run(self, name, code):
       self.do_in_thread(self.func_run, ( name, code ))
+
+   def reply_handle_line_hash(self, line=None):
+      if self.result == None:
+         self.result = { }
+
+      if hasattr(self, "file_num"):
+         self.send_progress(100 * len(self.result) // self.file_num )
+
+      if line != None:
+         d = ast.literal_eval(line)
+         self.result[d[0]] = d[1]
+      
+   def hash_line_parser(self, data=None):
+      self.reply_parser(data, self.reply_handle_line_hash)
+
+   def func_hash(self, num):
+      self.file_num = num
+      
+      # recursively scan all files and return the hashes
+      self.func(
+         "import uos, hashlib\n"
+         "def _hash(n):\n"
+         " try:\n"
+         "  hash = hashlib.sha1()\n"
+         "  with open(n, 'rb') as f:\n"
+         "   data = f.read(1024)\n"
+         "   while data:\n"
+         "    hash.update(data)\n"
+         "    data = f.read(1024)\n"
+         "   return hash.digest()\n"
+         " except:\n"
+         "  return None\n"
+         "def _list(d):\n"
+         " for f in uos.ilistdir(d if d else '/'):\n"
+         "   if f[1]&0x4000: _list(d+'/'+f[0])\n"
+         "   else: print( ( (d+'/'+f[0]).replace('\"','\\\\\\\"'), _hash(d+'/'+f[0] ) ) )\n"
+         "_list('')\n", self.hash_line_parser)
+         
+   def hash(self, num):
+      self.do_in_thread(self.func_hash, ( num, ) )
       
    def stop(self):
       if self.interact:
@@ -418,8 +459,9 @@ class Board(QObject):
       
    def replDo(self, cmd):
       self.board.enter_raw_repl(self.soft_reset)
-      self.board.exec_(cmd)
+      ret = self.board.exec_(cmd)
       self.board.exit_raw_repl()
+      return ret
       
    def rm(self, filename):
       """Remove the specified file or directory."""
@@ -506,6 +548,9 @@ class Board(QObject):
 
       elif cmd == Board.LISTDIR:
          self.ls()
+
+      elif cmd == Board.HASH:
+         self.hash(parms)
 
       elif cmd == Board.GET_FILE:
          # all parms are returned with the callback so the receiving

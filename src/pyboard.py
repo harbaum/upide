@@ -327,13 +327,15 @@ class Pyboard:
         return data
 
     def enter_raw_repl(self, soft_reset=True):
-        # print("enter raw repl", soft_reset)
+        # print("enter raw repl", soft_reset, self.serial)
 
         tries = 2
         n = 1
         while tries > 0 and n > 0:
         
-            self.serial.write(b"\r\x03\x03")  # ctrl-C twice: interrupt any running program
+            self.serial.write(b"\r\x03")
+            time.sleep(0.1)
+            self.serial.write(b"\x03")  # ctrl-C twice: interrupt any running program
 
             # flush input (without relying on serial.flushInput())
             n = self.serial.inWaiting()

@@ -17,7 +17,7 @@
 # Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-import os, sys, time
+import os, sys, time, hashlib
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -229,6 +229,12 @@ class Window(QMainWindow):
             self.editors.new(name)
 
    def backup_done(self, ok, msg = ""):
+      # TODO: ask user to keep the remaining files
+      if len(self.zip_old):
+         print("ZIP remains:")
+         for f in self.zip_old:
+            print("  ", f)
+            
       if ok: self.status(self.tr("Backup successful"))
       else:  self.status(self.tr("Backup failed: ") + msg)
       # re-enable UI     
@@ -251,6 +257,13 @@ class Window(QMainWindow):
          if name.startswith("/"):
             name = name[1:]
          
+            # if we got a fresh file, then forget about the old one
+            # from the zip
+            try:
+               self.zip_old.pop(name)
+            except:
+               pass
+               
          with self.zip.open(name, mode='w') as f:
             f.write(ctx["code"])
             f.close()
@@ -259,7 +272,7 @@ class Window(QMainWindow):
          return
             
       # backup next file
-      self.backup_file(self.fileview.get_next_file(ctx["name"]))
+      self.backup_next_file(ctx["name"])
 
    def backup_file(self, f):
       if not f:
@@ -278,7 +291,39 @@ class Window(QMainWindow):
       self.status(self.tr("Backing up {}").format(f.split("/")[-1]))
       self.console.appendFinal(self.tr("Backing up {}").format(f) + "\n", None)
       self.board.cmd(Board.GET_FILE, self.on_backup_file, { "name": f, "size": node.size } )
+
+   def backup_get_old_hash(self, f):
+      if f.lstrip("/") in self.zip_old:      
+         return hashlib.sha1(self.zip_old[f.lstrip("/")]).digest()
+
+      return None
       
+   def backup_next_file(self, cur=None):
+      f = self.fileview.get_next_file(cur)
+
+      # check if we work on an existing backup
+      if hasattr(self, "backup_hashes") and self.backup_hashes:      
+         while f != None and self.backup_get_old_hash(f) == self.backup_hashes[f]:
+            self.status(self.tr("Unmodified {}").format(f.split("/")[-1]))
+            self.console.appendFinal(self.tr("Unmodified {}").format(f) + "\n", None)
+      
+            # save existing from old zip
+            name = f.lstrip("/")
+            with self.zip.open(name, mode='w') as zf:
+               zf.write(self.zip_old[name])
+               zf.close()
+               self.zip_old.pop(name)
+
+            f = self.fileview.get_next_file(f)
+
+      self.backup_file(f)
+      
+   def on_hash(self, success, hashes=None):
+      self.backup_hashes = hashes
+
+      # start backup with first file
+      self.backup_next_file()
+         
       # user wants to make a full backup
    def on_backup(self):            
       # select a zip file to backup into
@@ -290,14 +335,42 @@ class Window(QMainWindow):
          # disable gui during backup
          self.on_board_request(True)
          self.console.set_button(None)
-      
+
          try:
+            # try to open zip and retrieve it's contents to allow
+            # for SHA1 comparison and omit downloading existing files
+            self.zip_old = {}
+            try:
+               zip = zipfile.ZipFile(fname, 'r')
+               files = zip.namelist()
+
+               # read all files into memory
+               for file in files:
+                  with zip.open(file, 'r') as f:
+                     self.zip_old[file] = f.read()
+                     f.close()
+            
+               zip.close()
+
+               # open new zip for writing, overwriting the old one
+               self.zip = zipfile.ZipFile(fname, 'w')
+            
+               # get all hashes from device to check which files are
+               # unmodified in the existing backup
+               self.status(self.tr("Preparing backup"))
+               self.board.cmd(Board.HASH, self.on_hash, self.fileview.number_of_files())
+               return
+         
+            except:
+               pass
+
             self.zip = zipfile.ZipFile(fname, 'w')
          except Exception as e:
             self.backup_done(False, str(e))
             return
 
          # start backup with first file
+         self.backup_hashes = None  # no old backup, so no need for hashes
          f = self.fileview.get_next_file()
          self.backup_file(f)
 

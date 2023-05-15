@@ -600,6 +600,15 @@ class FileView(QTreeView):
             if r != None: return r 
 
       return None
+
+   def number_of_files(self, node = None):
+      num = 0
+      if node == None: node = self.model()._root.child(0)
+      for ci in range(node.childCount()):
+         child = node.child(ci)
+         if child.size == None: num += self.number_of_files(child)
+         else:                  num += 1
+      return num
       
    def on_context_backup(self):
       self.backup.emit()
