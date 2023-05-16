@@ -23,6 +23,29 @@ from PyQt5.QtCore import *
 
 from editor import CodeEditor, ImageEditor
 
+class SearchWidget(QLineEdit):
+    search = pyqtSignal(str)
+    
+    def __init__(self):
+        super().__init__()
+        self.setClearButtonEnabled(True)
+
+        self.searchAction = QAction(QIcon(self.resource_path("assets/search.svg")), None)
+        self.searchAction.triggered.connect(self.on_search)        
+        self.addAction(self.searchAction, QLineEdit.LeadingPosition)
+        self.setPlaceholderText(self.tr("Search..."))
+        self.returnPressed.connect(self.on_search)
+        self.textChanged.connect(self.on_search)
+
+        # Translate asset paths to useable format for PyInstaller
+    def resource_path(self, relative_path):
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+
+    def on_search(self):
+        self.search.emit(self.text())
+    
 class EditorTabs(QTabWidget):
     closed = pyqtSignal(str)
     
@@ -33,6 +56,24 @@ class EditorTabs(QTabWidget):
         self.setTabsClosable(True)
         self.stack = stack
 
+        # Search widget
+        self.searchWidget = SearchWidget()
+        self.setCornerWidget(self.searchWidget)
+
+        self.searchWidget.search.connect(self.on_search)
+        self.currentChanged.connect(self.on_current_changed)
+        
+    def on_current_changed(self, tab):
+        self.searchWidget.setEnabled(tab >= 0 and hasattr(self.widget(tab), "search"))
+        
+    def on_search(self, str):
+        w = self.currentWidget()
+        if w and hasattr(w, "search"):            
+            w.search(str)
+    
+    def on_search_requested(self):
+        self.searchWidget.setFocus()
+        
     def get_index_by_file(self, name):
         for i in range(self.count()):
             if hasattr(self.widget(i), "name") and self.widget(i).name == name:
@@ -84,12 +125,19 @@ class EditorTabs(QTabWidget):
         if index is not None:
             # if text has been edited set tab color red
             self.tabBar().setTabTextColor(index, Qt.red if state else Qt.black);
-            
+
+    def update(self, index, code):
+        w = self.widget(index)
+        if hasattr(w, "setImage"): w.setImage(code)
+        if hasattr(w, "setCode"):  w.setCode(code)
+
     def new(self, name, focus, code):
         # check if we already have a tab for that file and just
         # raise it in that case
         index = self.get_index_by_file(name)
         if index is not None:
+            # window esists, raise it
+            self.update(index, code)
             self.setCurrentIndex(index)
             return
 
@@ -102,6 +150,9 @@ class EditorTabs(QTabWidget):
             editor = CodeEditor(name)
             editor.setCode(code)
 
+            # the code enditors can request a search
+            editor.searchRequested.connect(self.on_search_requested)
+            
         editor.run.connect(self.stack.on_run)
         editor.save.connect(self.stack.on_save)
         editor.saveBytes.connect(self.stack.on_save_bytes)
@@ -185,7 +236,7 @@ class Editors(QStackedWidget):
         self.tabs.closed.connect(self.on_tab_closed)
         self.tabs.currentChanged.connect(self.on_current_changed)
         self.addWidget(self.tabs)
-
+        
         # Translate asset paths to useable format for PyInstaller
     def resource_path(self, relative_path):
         if hasattr(sys, '_MEIPASS'):
@@ -334,7 +385,7 @@ class Editors(QStackedWidget):
             # there is no open editor for the saved file. This usually
             # means at has been saved after being newly imported. So
             # open a tab for it
-            self.new(name, code)
+            self.new(name, True, code)
                         
     def isModified(self):
         return self.tabs.isModified()
@@ -390,3 +441,9 @@ class Editors(QStackedWidget):
         # The connection to the device has been lost. Get all
         # unsaved data to keep it for later reconnection
         return self.tabs.getUnsaved()
+
+    def update(self, name, code):
+        # update an editor as the contents may have changed
+        if not name: return        
+        tab = self.tabs.get_index_by_file(name)
+        if tab: self.new(name, False, code)

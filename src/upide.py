@@ -302,8 +302,8 @@ class Window(QMainWindow):
       f = self.fileview.get_next_file(cur)
 
       # check if we work on an existing backup
-      if hasattr(self, "backup_hashes") and self.backup_hashes:      
-         while f != None and self.backup_get_old_hash(f) == self.backup_hashes[f]:
+      if hasattr(self, "hashes") and self.hashes:      
+         while f != None and self.backup_get_old_hash(f) == self.hashes[f]:
             self.status(self.tr("Unmodified {}").format(f.split("/")[-1]))
             self.console.appendFinal(self.tr("Unmodified {}").format(f) + "\n", None)
       
@@ -318,8 +318,8 @@ class Window(QMainWindow):
 
       self.backup_file(f)
       
-   def on_hash(self, success, hashes=None):
-      self.backup_hashes = hashes
+   def on_backup_hash(self, success, hashes=None):
+      self.hashes = hashes
 
       # start backup with first file
       self.backup_next_file()
@@ -358,7 +358,7 @@ class Window(QMainWindow):
                # get all hashes from device to check which files are
                # unmodified in the existing backup
                self.status(self.tr("Preparing backup"))
-               self.board.cmd(Board.HASH, self.on_hash, self.fileview.number_of_files())
+               self.board.cmd(Board.HASH, self.on_backup_hash, self.fileview.number_of_files())
                return
          
             except:
@@ -370,7 +370,7 @@ class Window(QMainWindow):
             return
 
          # start backup with first file
-         self.backup_hashes = None  # no old backup, so no need for hashes
+         self.hashes = None  # no old backup, so no need for hashes
          f = self.fileview.get_next_file()
          self.backup_file(f)
 
@@ -430,12 +430,16 @@ class Window(QMainWindow):
                if self.cbox.itemData(i, Qt.CheckStateRole) == Qt.Checked:
                   self.status(self.tr("Deleting: {}").format(f.split("/")[-1])) 
                   self.console.appendFinal(self.tr("Deleting: {}").format(f) + "\n", None)
-                  self.board.rm(f)                  
+                  self.board.rm(f)
+
+                  # close the editor if it existed
+                  self.editors.close("/"+f)
+                  
                else:
                   self.console.appendFinal(self.tr("Keeping: {}").format(f) + "\n", None)
                
       # once done reload the entire fileview. This will also
-      # re-enable the ui
+      # re-enable the ui and reload open files
       self.board.cmd(Board.LISTDIR, self.on_listdir)
       
    def restore_get_next_file(self, f = None):
@@ -472,14 +476,8 @@ class Window(QMainWindow):
       if not success:
          self.restore_done(False)
          return
-      
-      # restore next file
-      f = self.restore_get_next_file(self.restore_file_name)
-      if f == None:
-         self.restore_done(True)
-         return
 
-      self.restore_file(f)
+      self.restore_next_file(self.restore_file_name)
 
    def mkpath(self, path):
       # treat all paths as absolute
@@ -520,6 +518,7 @@ class Window(QMainWindow):
             data = infile.read()
             infile.close()
             self.restore_file_name = f
+            self.editors.update("/"+f, data)
             self.board.cmd(Board.PUT_FILE, self.on_restore_file, { "name": f, "code": data } )
       except Exception as e:
          print("restore exception", str(e))
@@ -567,6 +566,47 @@ class Window(QMainWindow):
          self.console.set_button(None)
          self.board.cmd(Board.GET_FILE, self.on_export_file, { "name": name, "size": size, "fname": fname } )
 
+   def restore_next_file(self, name=None):
+      f = self.restore_get_next_file(name)
+      skipped = True
+
+      while f != None and skipped:
+         # check if file really needs to be restored or if hash still matches
+         if hasattr(self, "hashes") and self.hashes:
+            # read file from zip to verify hash
+            try:
+               with self.zip.open(f, 'r') as infile:
+                  hash = hashlib.sha1(infile.read()).digest()
+                  infile.close()
+            except:
+               hash = None
+
+            # file is still identical, so don't restore
+            if ("/"+f) in self.hashes and hash == self.hashes["/"+f]:
+               self.status(self.tr("Unmodified {}").format(f.split("/")[-1]))
+               self.console.appendFinal(self.tr("Unmodified {}").format(f) + "\n", None)
+
+               # check if this file is in list of previous installed files (file was
+               # already there) and remove it from that list
+               if f in self.restore_files_before:
+                  self.restore_files_before.remove(f)
+
+               f = self.restore_get_next_file(f)
+            else:
+               # file is not already there and thus cannot be skipped
+               skipped = False
+                  
+      if f == None:
+         # no more file to restore
+         self.restore_done(True)
+         return
+      
+      self.restore_file(f)
+      
+   def on_restore_hash(self, success, hashes=None):
+      self.hashes = hashes
+      self.restore_next_file()
+
       # user wants to restore a full backup
    def on_restore(self):            
       # select a zip file to extract backup from
@@ -588,12 +628,9 @@ class Window(QMainWindow):
             self.restore_done(False)
             return
 
-         f = self.restore_get_next_file()
-         if not f:
-            self.restore_done(True)
-            return
-            
-         self.restore_file(f)
+         self.hashes = None
+         self.status(self.tr("Preparing restoration"))
+         self.board.cmd(Board.HASH, self.on_restore_hash, len(self.restore_files_before))
             
    def show_exception(self, e):
       # this was an exception forwarded from the target 

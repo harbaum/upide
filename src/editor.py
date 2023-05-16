@@ -414,6 +414,7 @@ class CodeEditor(QPlainTextEdit):
     save = pyqtSignal(str, str)
     saveBytes = pyqtSignal(str, bytes)
     stop = pyqtSignal()
+    searchRequested = pyqtSignal()
     modified = pyqtSignal(str, bool)
     
     def __init__(self, name):
@@ -482,6 +483,10 @@ class CodeEditor(QPlainTextEdit):
 
         self.setTabStopDistance(4 * self.fontMetrics().width(' ')) 
 
+    def on_search(self):
+        # user wants to search, so focus search box
+        self.searchRequested.emit()
+        
     def endsWith(self, exts):
         return self.name.split(".")[-1].lower() in exts
         
@@ -581,44 +586,6 @@ class CodeEditor(QPlainTextEdit):
             return True
 
         return QPlainTextEdit.event(self, event)
-
-    def on_do_search(self):
-        pattern = self.searchedit.text()
-        if pattern and not self.find(pattern):
-            # nothing found, set cursor to begin of document and
-            # try again
-            textCursor = self.textCursor()
-            textCursor.movePosition(QTextCursor.Start)
-            self.setTextCursor(textCursor)
-            self.find(pattern)
-         
-    def on_search(self):
-        # open search (and replace) dialog
-        self.search_dialog = QDialog(self)
-        self.search_dialog.setWindowTitle(self.tr("Search"))
-
-        vbox = QVBoxLayout()
-
-        search_w = QWidget()
-        searchbox = QHBoxLayout()
-        self.searchedit = QLineEdit()
-        searchbox.addWidget(self.searchedit)
-        searchbut = QPushButton(self.tr("Search"))
-        searchbut.clicked.connect(self.on_do_search)
-        searchbox.addWidget(searchbut)
-        searchbox.setContentsMargins(0,0,0,0)
-        search_w.setLayout(searchbox)
-        
-        vbox.addWidget(search_w)
-        
-        button_box = QDialogButtonBox(QDialogButtonBox.Close,
-                            Qt.Horizontal, self.search_dialog)
-        button_box.clicked.connect(self.search_dialog.close)
-        vbox.addWidget(button_box)
-        
-        self.search_dialog.setLayout(vbox)
-        self.searchedit.setFocus()
-        self.search_dialog.show()
 
     def getData(self):
         return self.text()
@@ -775,6 +742,22 @@ class CodeEditor(QPlainTextEdit):
 
         self.setExtraSelections([selection])
 
+    def search(self, pattern=None):
+        # unless the search pattern is the same, go back one word
+        if hasattr(self, "last_pattern") and pattern != self.last_pattern:
+            textCursor = self.textCursor()
+            textCursor.movePosition(QTextCursor.WordLeft)
+            self.setTextCursor(textCursor)
+            
+        if pattern and not self.find(pattern):
+            # nothing found, set cursor to begin of document and try again
+            textCursor = self.textCursor()
+            textCursor.movePosition(QTextCursor.Start)
+            self.setTextCursor(textCursor)
+            self.find(pattern)        
+
+        self.last_pattern = pattern
+            
 class ImageItem(QGraphicsPixmapItem):
     # modified = pyqtSignal()
         
