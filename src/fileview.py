@@ -267,6 +267,7 @@ class FileView(QTreeView):
    delete = pyqtSignal(str)   
    rename = pyqtSignal(str, str)   
    firmware = pyqtSignal()
+   refresh = pyqtSignal()
    host_import = pyqtSignal(str, str)
    example_import = pyqtSignal(str, dict)
    example_imported = pyqtSignal(str, bytes, dict)
@@ -286,6 +287,9 @@ class FileView(QTreeView):
       
       # https://stackoverflow.com/questions/782255/pyqt-and-context-menu
       self.contextMenu = QMenu(self);
+      self.refreshAction = QAction(self.tr("Refresh"), self.contextMenu);
+      self.refreshAction.triggered.connect(self.on_context_refresh)
+      self.contextMenu.addAction(self.refreshAction);      
       self.firmwareAction = QAction(self.tr("Firmware..."), self.contextMenu);
       self.firmwareAction.triggered.connect(self.on_context_firmware)
       self.contextMenu.addAction(self.firmwareAction);      
@@ -576,6 +580,9 @@ class FileView(QTreeView):
    def on_context_export(self):
       self.file_export.emit(self.context_entry[0], self.context_entry[1])
       
+   def on_context_refresh(self):
+      self.refresh.emit()
+
    def on_context_firmware(self):
       self.firmware.emit()
 
@@ -767,7 +774,8 @@ class FileView(QTreeView):
 
          self.setCurrentIndex(index)
       
-         # only the root entry has the firmware entry ...
+         # only the root entry has the firmware and refresh entries ...
+         self.refreshAction.setVisible(size == None and name == "")
          self.firmwareAction.setVisible(size == None and name == "")
          # ... and also the backup
          self.backupMenu.menuAction().setVisible(size == None and name == "")

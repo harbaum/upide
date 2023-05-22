@@ -441,6 +441,10 @@ class Window(QMainWindow):
       # once done reload the entire fileview. This will also
       # re-enable the ui and reload open files
       self.board.cmd(Board.LISTDIR, self.on_listdir)
+
+   def on_refresh(self):
+      self.on_board_request(True)
+      self.board.cmd(Board.LISTDIR, self.on_refresh_listdir)
       
    def restore_get_next_file(self, f = None):
       files = self.zip.namelist()
@@ -750,6 +754,7 @@ class Window(QMainWindow):
       self.fileview.mkdir.connect(self.on_mkdir)
       self.fileview.rename.connect(self.on_rename)
       self.fileview.message.connect(self.on_message)
+      self.fileview.refresh.connect(self.on_refresh)
       self.fileview.firmware.connect(self.on_firmware)
       self.fileview.host_import.connect(self.on_import)
       self.fileview.example_import.connect(self.on_example)
@@ -851,6 +856,12 @@ class Window(QMainWindow):
 
       self.board.cmd(Board.GET_FILE, self.on_loaded, { "name": filelist[0],
                    "size": size, "filelist": filelist[1:], "quiet": True } )
+         
+   def on_refresh_listdir(self, success, files=None):
+      if success:
+         self.fileview.set(files)
+
+      self.on_board_request(False)
          
    def on_listdir(self, success, files=None):
       if success:
