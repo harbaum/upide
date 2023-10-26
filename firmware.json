@@ -2,8 +2,8 @@
     {
 	"id": "esp32",
 	"sysname": "ESP32",
-	"board": "V1.20.0 for ESP32 generic",
-	"info": "Micropython V1.20.0 for generic ESP32 boards (WROOM-32)",
+	"board": "V1.21.0 for ESP32 generic",
+	"info": "Micropython V1.21.0 for generic ESP32 boards (WROOM-32)",
         "parms": {
             "baud": 460800,           "chip": "esp32",
             "compress": null,         "connect_attempts": 7,
@@ -13,15 +13,15 @@
             "ignore_flash_encryption_efuse_setting": false,
             "no_compress": false,     "no_progress": false,
             "no_stub": false,         "verify": false,
-            "addr_filename": [ 4096, "https://micropython.org/resources/firmware/esp32-20230426-v1.20.0.bin",
-                               "c5d81562039f6b8322af336b3d7f48b7" ]
+            "addr_filename": [ 4096, "https://micropython.org/resources/firmware/ESP32_GENERIC-20231005-v1.21.0.bin",
+                               "a096f72d136280c3bdb65f7e1a494922" ]
         }
     },
     {
         "id": "esp32spiram",
         "sysname": "ESP32",
-        "board": "V1.20.0 for ESP32 with SPIRAM",
-        "info": "Micropython V1.20.0 for ESP32 boards with extra SPIRAM (WROVER-32)",
+        "board": "V1.21.0 for ESP32 with SPIRAM",
+        "info": "Micropython V1.21.0 for ESP32 boards with extra SPIRAM (WROVER-32)",
         "parms": {
             "baud": 460800,           "chip": "esp32",
             "compress": null,         "connect_attempts": 7,
@@ -31,8 +31,8 @@
             "ignore_flash_encryption_efuse_setting": false,
             "no_compress": false,     "no_progress": false,
             "no_stub": false,         "verify": false,
-            "addr_filename": [ 4096, "https://micropython.org/resources/firmware/esp32spiram-20230426-v1.20.0.bin",
-                               "bb64ef46a9c6ea874d2257abb17e151b" ]
+            "addr_filename": [ 4096, "https://micropython.org/resources/firmware/ESP32_GENERIC-SPIRAM-20231005-v1.21.0.bin",
+                               "ba34b6d68538c2f112bdd221000c92af" ]
         }
     },
     {
@@ -56,8 +56,8 @@
     {
         "id": "esp8266_2m",
         "sysname": "ESP8266",
-        "board": "V1.20.0 for ESP8266 with 2M flash or more",
-        "info": "Micropython V1.20.0 for ESP8266 boards with two megabytes of flash memory or more",
+        "board": "V1.21.0 for ESP8266 with 2M flash or more",
+        "info": "Micropython V1.21.0 for ESP8266 boards with two megabytes of flash memory or more",
         "parms": {
             "baud": 460800,           "chip": "esp8266",
             "compress": null,         "connect_attempts": 7,
@@ -67,15 +67,15 @@
             "ignore_flash_encryption_efuse_setting": false,
             "no_compress": false,     "no_progress": false,
             "no_stub": false,         "verify": false,
-            "addr_filename": [ 0, "https://micropython.org/resources/firmware/esp8266-20230426-v1.20.0.bin",
-                               "88329126c9ba56d208391e91eb864516" ]
+            "addr_filename": [ 0, "https://micropython.org/resources/firmware/ESP8266_GENERIC-20231005-v1.21.0.bin",
+                               "2592d61d9596bbe6e2ae127dfd486f30" ]
         }
     },
     {
         "id": "esp8266_1m",
         "sysname": "ESP8266",
-        "board": "V1.20.0 for ESP8266 with 1M flash",
-        "info": "Micropython V1.20.0 for ESP8266 boards with one megabyte of flash memory",
+        "board": "V1.21.0 for ESP8266 with 1M flash",
+        "info": "Micropython V1.21.0 for ESP8266 boards with one megabyte of flash memory",
         "parms": {
             "baud": 460800,           "chip": "esp8266",
             "compress": null,         "connect_attempts": 7,
@@ -85,15 +85,15 @@
             "ignore_flash_encryption_efuse_setting": false,
             "no_compress": false,     "no_progress": false,
             "no_stub": false,         "verify": false,
-            "addr_filename": [ 0, "https://micropython.org/resources/firmware/esp8266-1m-20230426-v1.20.0.bin",
-                               "f163400a88f43b9b16363a769f85dcad" ]
+            "addr_filename": [ 0, "https://micropython.org/resources/firmware/ESP8266_GENERIC-FLASH_1M-20231005-v1.21.0.bin",
+                               "286973f048930838f1b7f73662f68a82" ]
         }
     },
     {
         "id": "esp8266_512k",
         "sysname": "ESP8266",
-        "board": "V1.20.0 for ESP8266 with 512k flash",
-        "info": "Micropython V1.20.0 for ESP8266 boards with half a megabyte of flash memory",
+        "board": "V1.21.0 for ESP8266 with 512k flash",
+        "info": "Micropython V1.21.0 for ESP8266 boards with half a megabyte of flash memory",
         "parms": {
             "baud": 460800,           "chip": "esp8266",
             "compress": null,         "connect_attempts": 7,
@@ -103,8 +103,8 @@
             "ignore_flash_encryption_efuse_setting": false,
             "no_compress": false,     "no_progress": false,
             "no_stub": false,         "verify": false,
-            "addr_filename": [ 0, "https://micropython.org/resources/firmware/esp8266-512k-20230426-v1.20.0.bin",
-                               "8ccaa77e01b2159f59ac4e17810da612" ]
+            "addr_filename": [ 0, "https://micropython.org/resources/firmware/ESP8266_GENERIC-FLASH_512K-20231005-v1.21.0.bin",
+                               "5bcc53b34f394896121b2f3dea9aba04" ]
         }
     }  
 ]
